@@ -4,6 +4,7 @@
 
 #define USB_VENDOR_ID_NZXT 0x1e71
 #define USB_PRODUCT_ID_NZXT_GRID_V3 0x1711
+#define USB_PRODUCT_ID_NZXT_SMART_DEVICE_V1 0x1714
 
 #define NZXT_GRID_MAX_CHANNELS 6
 
@@ -216,7 +217,7 @@ static const struct hwmon_ops nzxt_grid_hwmon_ops = {
 	.write = nzxt_grid_hwmon_write,
 };
 
-static const struct hwmon_channel_info *nzxt_grid_channel_info[] = {
+static const struct hwmon_channel_info *nzxt_grid_v3_channel_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT,
 			   HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
 	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_MODE | HWMON_PWM_INPUT,
@@ -232,10 +233,38 @@ static const struct hwmon_channel_info *nzxt_grid_channel_info[] = {
 	NULL
 };
 
-static const struct hwmon_chip_info nzxt_grid_chip_info = {
-	.ops = &nzxt_grid_hwmon_ops,
-	.info = nzxt_grid_channel_info,
+static const struct hwmon_channel_info *nzxt_smart_device_v1_channel_info[] = {
+	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
+	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT),
+	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
+	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT),
+	NULL
 };
+
+static const struct hwmon_chip_info nzxt_grid_v3_chip_info = {
+	.ops = &nzxt_grid_hwmon_ops,
+	.info = nzxt_grid_v3_channel_info,
+};
+
+static const struct hwmon_chip_info nzxt_smart_device_v1_chip_info = {
+	.ops = &nzxt_grid_hwmon_ops,
+	.info = nzxt_smart_device_v1_channel_info,
+};
+
+enum {
+	nzxt_grid_device_config_grid_v3,
+	nzxt_grid_device_config_smart_device_v1,
+	nzxt_grid_device_config_count
+};
+
+static const struct hwmon_chip_info
+	*nzxt_grid_device_configs[nzxt_grid_device_config_count] = {
+		[nzxt_grid_device_config_grid_v3] = &nzxt_grid_v3_chip_info,
+		[nzxt_grid_device_config_smart_device_v1] =
+			&nzxt_smart_device_v1_chip_info,
+	};
 
 static int nzxt_grid_raw_event(struct hid_device *hdev,
 			       struct hid_report *report, u8 *data, int size)
@@ -310,7 +339,8 @@ static int nzxt_grid_probe(struct hid_device *hdev,
 	hid_device_io_start(hdev);
 
 	grid->hwmon = hwmon_device_register_with_info(
-		&hdev->dev, "nzxtgrid", grid, &nzxt_grid_chip_info, 0);
+		&hdev->dev, "nzxtgrid", grid,
+		nzxt_grid_device_configs[id->driver_data], 0);
 	if (IS_ERR(grid->hwmon)) {
 		ret = PTR_ERR(grid->hwmon);
 		goto out_hw_close;
@@ -340,7 +370,11 @@ static const struct hid_report_id nzxt_grid_reports[] = {
 };
 
 static const struct hid_device_id nzxt_grid_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_NZXT_GRID_V3) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_NZXT_GRID_V3),
+	  .driver_data = nzxt_grid_device_config_grid_v3 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT,
+			 USB_PRODUCT_ID_NZXT_SMART_DEVICE_V1),
+	  .driver_data = nzxt_grid_device_config_smart_device_v1 },
 	{}
 };
 
