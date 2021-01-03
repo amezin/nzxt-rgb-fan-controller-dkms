@@ -51,6 +51,9 @@ static umode_t nzxt_grid_is_visible(const void *data,
 				    enum hwmon_sensor_types type, u32 attr,
 				    int channel)
 {
+	if (type == hwmon_pwm && attr == hwmon_pwm_input)
+		return S_IWUSR;
+
 	return S_IRUGO;
 }
 
@@ -148,16 +151,80 @@ static int nzxt_grid_hwmon_read(struct device *dev,
 	return ret;
 }
 
+static uint8_t nzxt_grid_pwm_to_percent(long hwmon_value)
+{
+	if (hwmon_value < 0)
+		return 0;
+
+	if (hwmon_value >= 255)
+		return 100;
+
+	return (uint8_t)(hwmon_value * 100 / 255);
+}
+
+static int nzxt_grid_hwmon_write_pwm_fixed(struct nzxt_grid_device *grid,
+					   int channel, long val)
+{
+	uint8_t *buffer = kzalloc(65, GFP_KERNEL);
+	int ret;
+
+	if (!buffer)
+		return -ENOMEM;
+
+	buffer[0] = 0x2;
+	buffer[1] = 0x4d;
+	buffer[2] = (uint8_t)channel;
+	buffer[4] = nzxt_grid_pwm_to_percent(val);
+
+	ret = hid_hw_output_report(grid->hid, buffer, 65);
+
+	kfree(buffer);
+
+	return (ret < 0) ? ret : 0;
+}
+
+static int nzxt_grid_hwmon_write_pwm(struct nzxt_grid_device *grid, u32 attr,
+				     int channel, long val)
+{
+	switch (attr) {
+	case hwmon_pwm_input:
+		return nzxt_grid_hwmon_write_pwm_fixed(grid, channel, val);
+
+	default:
+		return -EINVAL;
+	}
+}
+
+static int nzxt_grid_hwmon_write(struct device *dev,
+				 enum hwmon_sensor_types type, u32 attr,
+				 int channel, long val)
+{
+	struct nzxt_grid_device *grid = dev_get_drvdata(dev);
+
+	switch (type) {
+	case hwmon_pwm:
+		return nzxt_grid_hwmon_write_pwm(grid, attr, channel, val);
+
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct hwmon_ops nzxt_grid_hwmon_ops = {
 	.is_visible = nzxt_grid_is_visible,
 	.read = nzxt_grid_hwmon_read,
+	.write = nzxt_grid_hwmon_write,
 };
 
 static const struct hwmon_channel_info *nzxt_grid_channel_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT,
 			   HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
-	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_MODE, HWMON_PWM_MODE, HWMON_PWM_MODE,
-			   HWMON_PWM_MODE, HWMON_PWM_MODE, HWMON_PWM_MODE),
+	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
+			   HWMON_PWM_MODE | HWMON_PWM_INPUT),
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT,
 			   HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
 	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT,
