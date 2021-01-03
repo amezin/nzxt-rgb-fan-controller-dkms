@@ -28,6 +28,8 @@ struct nzxt_grid_status_report {
 	uint8_t unknown4[5];
 } __attribute__((packed));
 
+#define NZXT_GRID_OUTPUT_REPORT_SIZE 65
+
 enum nzxt_grid_fan_type {
 	nzxt_grid_fan_none = 0,
 	nzxt_grid_fan_dc = 1,
@@ -166,7 +168,7 @@ static uint8_t nzxt_grid_pwm_to_percent(long hwmon_value)
 static int nzxt_grid_hwmon_write_pwm_fixed(struct nzxt_grid_device *grid,
 					   int channel, long val)
 {
-	uint8_t *buffer = kzalloc(65, GFP_KERNEL);
+	uint8_t *buffer = kzalloc(NZXT_GRID_OUTPUT_REPORT_SIZE, GFP_KERNEL);
 	int ret;
 
 	if (!buffer)
@@ -177,7 +179,8 @@ static int nzxt_grid_hwmon_write_pwm_fixed(struct nzxt_grid_device *grid,
 	buffer[2] = (uint8_t)channel;
 	buffer[4] = nzxt_grid_pwm_to_percent(val);
 
-	ret = hid_hw_output_report(grid->hid, buffer, 65);
+	ret = hid_hw_output_report(grid->hid, buffer,
+				   NZXT_GRID_OUTPUT_REPORT_SIZE);
 
 	kfree(buffer);
 
@@ -308,6 +311,42 @@ static int nzxt_grid_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+static int nzxt_grid_init_or_reset(struct nzxt_grid_device *grid)
+{
+	/* Without this, the device can't control DC fans.
+	 * Though it detects fan type properly, even without init (?!) */
+	uint8_t *buffer = kzalloc(NZXT_GRID_OUTPUT_REPORT_SIZE, GFP_KERNEL);
+	int ret;
+
+	if (!buffer)
+		return -ENOMEM;
+
+	buffer[0] = 0x1;
+	buffer[1] = 0x5c;
+
+	ret = hid_hw_output_report(grid->hid, buffer,
+				   NZXT_GRID_OUTPUT_REPORT_SIZE);
+
+	if (ret < 0)
+		goto fail;
+
+	buffer[0] = 0x1;
+	buffer[1] = 0x5d;
+
+	ret = hid_hw_output_report(grid->hid, buffer,
+				   NZXT_GRID_OUTPUT_REPORT_SIZE);
+
+	if (ret < 0)
+		goto fail;
+
+	ret = 0;
+
+fail:
+	kfree(buffer);
+
+	return ret;
+}
+
 static int nzxt_grid_probe(struct hid_device *hdev,
 			   const struct hid_device_id *id)
 {
@@ -337,6 +376,10 @@ static int nzxt_grid_probe(struct hid_device *hdev,
 		goto out_hw_stop;
 
 	hid_device_io_start(hdev);
+
+	ret = nzxt_grid_init_or_reset(grid);
+	if (ret)
+		goto out_hw_close;
 
 	grid->hwmon = hwmon_device_register_with_info(
 		&hdev->dev, "nzxtgrid", grid,
