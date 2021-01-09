@@ -1,17 +1,30 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/hid.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 #define USB_VENDOR_ID_NZXT 0x1e71
 #define USB_PRODUCT_ID_NZXT_GRID_V3 0x1711
 #define USB_PRODUCT_ID_NZXT_SMART_DEVICE_V1 0x1714
 
-#define NZXT_GRID_MAX_CHANNELS 6
+#define MAX_CHANNELS 6
 
-#define NZXT_GRID_STATUS_REPORT_ID 4
+enum input_report_id {
+	INPUT_REPORT_ID_STATUS = 0x4,
+};
 
-struct nzxt_grid_status_report {
-	uint8_t report_id;
+enum fan_type {
+	FAN_TYPE_INVALID = -1,
+	FAN_TYPE_NONE = 0,
+	FAN_TYPE_DC = 1,
+	FAN_TYPE_PWM = 2,
+};
+
+struct status_report {
+	uint8_t report_id; /* INPUT_REPORT_ID_STATUS = 0x4 */
 	uint8_t unknown1[2];
 	__be16 rpm;
 	uint8_t unknown2[2];
@@ -22,47 +35,131 @@ struct nzxt_grid_status_report {
 	uint8_t firmware_version_major;
 	__be16 firmware_version_minor;
 	uint8_t firmware_version_patch;
-	uint8_t channel_index_and_fan_type;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t channel_index : 4;
+	uint8_t fan_type : 4; /* should be one of enum fan_type */
+#else
+	uint8_t fan_type : 4; /* should be one of enum fan_type */
+	uint8_t channel_index : 4;
+#endif
 	uint8_t unknown4[5];
-} __attribute__((packed));
+} __attribute__((__packed__));
 
-__always_inline uint8_t
-nzxt_grid_get_channel_index(const struct nzxt_grid_status_report *report)
-{
-	return report->channel_index_and_fan_type >> 4;
-}
-
-__always_inline uint8_t
-nzxt_grid_get_fan_type(const struct nzxt_grid_status_report *report)
-{
-	return report->channel_index_and_fan_type & 0x3;
-}
-
-#define NZXT_GRID_OUTPUT_REPORT_SIZE 65
-
-enum nzxt_grid_fan_type {
-	nzxt_grid_fan_none = 0,
-	nzxt_grid_fan_dc = 1,
-	nzxt_grid_fan_pwm = 2,
+enum output_report_id {
+	OUTPUT_REPORT_ID_INIT_COMMAND = 0x1,
+	OUTPUT_REPORT_ID_CHANNEL_COMMAND = 0x2,
 };
 
-struct nzxt_grid_channel_status {
-	enum nzxt_grid_fan_type type;
+struct init_command_report {
+	uint8_t report_id; /* OUTPUT_REPORT_ID_INIT_COMMAND = 0x1 */
+	uint8_t command;
+} __attribute__((__packed__));
+
+static const uint8_t init_command_sequence[] = { 0x5c, 0x5d, 0x59 };
+
+enum channel_command_id {
+	CHANNEL_COMMAND_ID_SET_FAN_SPEED = 0x4d,
+};
+
+struct set_fan_speed_report {
+	uint8_t report_id; /* OUTPUT_REPORT_ID_CHANNEL_COMMAND = 0x2 */
+	uint8_t command; /* CHANNEL_COMMAND_ID_SET_FAN_SPEED = 0x4d */
+	uint8_t channel_index;
+	uint8_t unknown1;
+	uint8_t fan_speed_percent;
+	uint8_t padding[60];
+} __attribute__((__packed__));
+
+struct channel_status {
+	enum fan_type type;
 	long speed_rpm;
 	long in_millivolt;
 	long curr_milliamp;
 };
 
-struct nzxt_grid_device {
+struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
-	struct nzxt_grid_channel_status channel[NZXT_GRID_MAX_CHANNELS];
+	struct channel_status channel[MAX_CHANNELS];
 	rwlock_t lock;
 };
 
-static umode_t nzxt_grid_is_visible(const void *data,
-				    enum hwmon_sensor_types type, u32 attr,
-				    int channel)
+static void update_channel_status(struct channel_status *status,
+				  struct status_report *report)
+{
+	uint8_t fan_type = report->fan_type;
+	switch (fan_type) {
+	case FAN_TYPE_NONE:
+	case FAN_TYPE_DC:
+	case FAN_TYPE_PWM:
+		status->type = (enum fan_type)fan_type;
+		break;
+
+	default:
+		pr_warn("Invalid fan type %#x\n", fan_type);
+		status->type = FAN_TYPE_INVALID;
+	}
+
+	status->speed_rpm = get_unaligned_be16(&report->rpm);
+	status->in_millivolt =
+		report->in_volt * 1000L + report->in_centivolt * 10L;
+	status->curr_milliamp =
+		report->curr_amp * 1000L + report->curr_centiamp * 10L;
+}
+
+static struct channel_status *get_channel_status(struct drvdata *drvdata,
+						 int channel_index)
+{
+	if (channel_index < 0 || channel_index >= MAX_CHANNELS) {
+		pr_warn("Invalid channel index %d\n", channel_index);
+		return NULL;
+	}
+
+	return &drvdata->channel[channel_index];
+}
+
+static void update_status(struct drvdata *drvdata, struct status_report *report)
+{
+	struct channel_status *channel_status =
+		get_channel_status(drvdata, report->channel_index);
+
+	if (channel_status) {
+		unsigned long irq_flags;
+		write_lock_irqsave(&drvdata->lock, irq_flags);
+		update_channel_status(channel_status, report);
+		write_unlock_irqrestore(&drvdata->lock, irq_flags);
+	}
+}
+
+static int send_init_commands(struct drvdata *drvdata)
+{
+	struct init_command_report *report =
+		kzalloc(sizeof(struct init_command_report), GFP_KERNEL);
+	int i;
+
+	if (!report)
+		return -ENOMEM;
+
+	report->report_id = OUTPUT_REPORT_ID_INIT_COMMAND;
+
+	for (i = 0; i < ARRAY_SIZE(init_command_sequence); i++) {
+		int ret;
+		report->command = init_command_sequence[i];
+		ret = hid_hw_output_report(drvdata->hid, (void *)report,
+					   sizeof(*report));
+		if (ret < 0) {
+			pr_warn("Failed to send init command: %d\n", ret);
+			kfree(report);
+			return ret;
+		}
+	}
+
+	kfree(report);
+	return 0;
+}
+
+static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
+				u32 attr, int channel)
 {
 	if (type == hwmon_pwm && attr == hwmon_pwm_input)
 		return S_IWUSR;
@@ -70,11 +167,14 @@ static umode_t nzxt_grid_is_visible(const void *data,
 	return S_IRUGO;
 }
 
-static int
-nzxt_grid_hwmon_read_fan(struct nzxt_grid_channel_status *channel_status,
-			 u32 attr, long *val)
+static int hwmon_read_fan(struct channel_status *channel_status, u32 attr,
+			  long *val)
 {
 	switch (attr) {
+	case hwmon_fan_enable:
+		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		return 0;
+
 	case hwmon_fan_input:
 		*val = channel_status->speed_rpm;
 		return 0;
@@ -84,13 +184,16 @@ nzxt_grid_hwmon_read_fan(struct nzxt_grid_channel_status *channel_status,
 	}
 }
 
-static int
-nzxt_grid_hwmon_read_pwm(struct nzxt_grid_channel_status *channel_status,
-			 u32 attr, long *val)
+static int hwmon_read_pwm(struct channel_status *channel_status, u32 attr,
+			  long *val)
 {
 	switch (attr) {
+	case hwmon_pwm_enable:
+		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		return 0;
+
 	case hwmon_pwm_mode:
-		*val = (channel_status->type == nzxt_grid_fan_pwm) ? 1 : 0;
+		*val = (channel_status->type == FAN_TYPE_PWM) ? 1 : 0;
 		return 0;
 
 	default:
@@ -98,11 +201,14 @@ nzxt_grid_hwmon_read_pwm(struct nzxt_grid_channel_status *channel_status,
 	}
 }
 
-static int
-nzxt_grid_hwmon_read_in(struct nzxt_grid_channel_status *channel_status,
-			u32 attr, long *val)
+static int hwmon_read_in(struct channel_status *channel_status, u32 attr,
+			 long *val)
 {
 	switch (attr) {
+	case hwmon_in_enable:
+		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		return 0;
+
 	case hwmon_in_input:
 		*val = channel_status->in_millivolt;
 		return 0;
@@ -112,11 +218,14 @@ nzxt_grid_hwmon_read_in(struct nzxt_grid_channel_status *channel_status,
 	}
 }
 
-static int
-nzxt_grid_hwmon_read_curr(struct nzxt_grid_channel_status *channel_status,
-			  u32 attr, long *val)
+static int hwmon_read_curr(struct channel_status *channel_status, u32 attr,
+			   long *val)
 {
 	switch (attr) {
+	case hwmon_curr_enable:
+		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		return 0;
+
 	case hwmon_curr_input:
 		*val = channel_status->curr_milliamp;
 		return 0;
@@ -126,255 +235,193 @@ nzxt_grid_hwmon_read_curr(struct nzxt_grid_channel_status *channel_status,
 	}
 }
 
-static int nzxt_grid_hwmon_read(struct device *dev,
-				enum hwmon_sensor_types type, u32 attr,
-				int channel, long *val)
+static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
+		      u32 attr, int channel, long *val)
 {
-	struct nzxt_grid_device *grid = dev_get_drvdata(dev);
-	struct nzxt_grid_channel_status *channel_status =
-		&grid->channel[channel];
+	struct drvdata *drvdata = dev_get_drvdata(dev);
+	struct channel_status *channel_status =
+		get_channel_status(drvdata, channel);
 	unsigned long irq_flags;
 	int ret;
 
-	read_lock_irqsave(&grid->lock, irq_flags);
+	if (!channel_status)
+		return -EINVAL;
+
+	read_lock_irqsave(&drvdata->lock, irq_flags);
 
 	switch (type) {
 	case hwmon_fan:
-		ret = nzxt_grid_hwmon_read_fan(channel_status, attr, val);
+		ret = hwmon_read_fan(channel_status, attr, val);
 		break;
 
 	case hwmon_pwm:
-		ret = nzxt_grid_hwmon_read_pwm(channel_status, attr, val);
+		ret = hwmon_read_pwm(channel_status, attr, val);
 		break;
 
 	case hwmon_in:
-		ret = nzxt_grid_hwmon_read_in(channel_status, attr, val);
+		ret = hwmon_read_in(channel_status, attr, val);
 		break;
 
 	case hwmon_curr:
-		ret = nzxt_grid_hwmon_read_curr(channel_status, attr, val);
+		ret = hwmon_read_curr(channel_status, attr, val);
 		break;
 
 	default:
 		ret = -EINVAL;
 	}
 
-	read_unlock_irqrestore(&grid->lock, irq_flags);
+	read_unlock_irqrestore(&drvdata->lock, irq_flags);
 
 	return ret;
 }
 
-static uint8_t nzxt_grid_pwm_to_percent(long hwmon_value)
+static int hwmon_write_pwm_input(struct drvdata *drvdata, int channel, long val)
 {
-	if (hwmon_value < 0)
-		return 0;
-
-	if (hwmon_value >= 255)
-		return 100;
-
-	return (uint8_t)(hwmon_value * 100 / 255);
-}
-
-static int nzxt_grid_hwmon_write_pwm_fixed(struct nzxt_grid_device *grid,
-					   int channel, long val)
-{
-	uint8_t *buffer = kzalloc(NZXT_GRID_OUTPUT_REPORT_SIZE, GFP_KERNEL);
+	struct set_fan_speed_report *report =
+		kzalloc(sizeof(struct set_fan_speed_report), GFP_KERNEL);
 	int ret;
 
-	if (!buffer)
+	if (!report)
 		return -ENOMEM;
 
-	buffer[0] = 0x2;
-	buffer[1] = 0x4d;
-	buffer[2] = (uint8_t)channel;
-	buffer[4] = nzxt_grid_pwm_to_percent(val);
+	report->report_id = OUTPUT_REPORT_ID_CHANNEL_COMMAND;
+	report->command = CHANNEL_COMMAND_ID_SET_FAN_SPEED;
+	report->channel_index = channel;
 
-	ret = hid_hw_output_report(grid->hid, buffer,
-				   NZXT_GRID_OUTPUT_REPORT_SIZE);
+	if (val >= 255)
+		report->fan_speed_percent = 100;
+	else if (val <= 0)
+		report->fan_speed_percent = 0;
+	else
+		report->fan_speed_percent = val * 100 / 255;
 
-	kfree(buffer);
+	ret = hid_hw_output_report(drvdata->hid, (void *)report,
+				   sizeof(*report));
+	kfree(report);
 
-	return (ret < 0) ? ret : 0;
+	return ret;
 }
 
-static int nzxt_grid_hwmon_write_pwm(struct nzxt_grid_device *grid, u32 attr,
-				     int channel, long val)
+static int hwmon_write_pwm(struct drvdata *drvdata, u32 attr, int channel,
+			   long val)
 {
 	switch (attr) {
 	case hwmon_pwm_input:
-		return nzxt_grid_hwmon_write_pwm_fixed(grid, channel, val);
+		return hwmon_write_pwm_input(drvdata, channel, val);
 
 	default:
 		return -EINVAL;
 	}
 }
 
-static int nzxt_grid_hwmon_write(struct device *dev,
-				 enum hwmon_sensor_types type, u32 attr,
-				 int channel, long val)
+static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
+		       u32 attr, int channel, long val)
 {
-	struct nzxt_grid_device *grid = dev_get_drvdata(dev);
+	struct drvdata *drvdata = dev_get_drvdata(dev);
 
 	switch (type) {
 	case hwmon_pwm:
-		return nzxt_grid_hwmon_write_pwm(grid, attr, channel, val);
+		return hwmon_write_pwm(drvdata, attr, channel, val);
 
 	default:
 		return -EINVAL;
 	}
 }
 
-static const struct hwmon_ops nzxt_grid_hwmon_ops = {
-	.is_visible = nzxt_grid_is_visible,
-	.read = nzxt_grid_hwmon_read,
-	.write = nzxt_grid_hwmon_write,
+static const struct hwmon_ops hwmon_ops = {
+	.is_visible = hwmon_is_visible,
+	.read = hwmon_read,
+	.write = hwmon_write,
 };
 
-static const struct hwmon_channel_info *nzxt_grid_v3_channel_info[] = {
-	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT,
-			   HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
-	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT),
-	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT,
-			   HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
-	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT,
-			   HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT),
+#define FAN_CHANNEL (HWMON_F_INPUT | HWMON_F_ENABLE)
+#define PWM_CHANNEL (HWMON_PWM_MODE | HWMON_PWM_INPUT | HWMON_PWM_ENABLE)
+#define IN_CHANNEL (HWMON_I_INPUT | HWMON_I_ENABLE)
+#define CURR_CHANNEL (HWMON_C_INPUT | HWMON_C_ENABLE)
+
+static const struct hwmon_channel_info *grid_v3_channel_info[] = {
+	HWMON_CHANNEL_INFO(fan, FAN_CHANNEL, FAN_CHANNEL, FAN_CHANNEL,
+			   FAN_CHANNEL, FAN_CHANNEL, FAN_CHANNEL),
+	HWMON_CHANNEL_INFO(pwm, PWM_CHANNEL, PWM_CHANNEL, PWM_CHANNEL,
+			   PWM_CHANNEL, PWM_CHANNEL, PWM_CHANNEL),
+	HWMON_CHANNEL_INFO(in, IN_CHANNEL, IN_CHANNEL, IN_CHANNEL, IN_CHANNEL,
+			   IN_CHANNEL, IN_CHANNEL),
+	HWMON_CHANNEL_INFO(curr, CURR_CHANNEL, CURR_CHANNEL, CURR_CHANNEL,
+			   CURR_CHANNEL, CURR_CHANNEL, CURR_CHANNEL),
 	NULL
 };
 
-static const struct hwmon_channel_info *nzxt_smart_device_v1_channel_info[] = {
-	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
-	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT,
-			   HWMON_PWM_MODE | HWMON_PWM_INPUT),
-	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
-	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT),
-	NULL
+static const struct hwmon_chip_info grid_v3_chip_info = {
+	.ops = &hwmon_ops,
+	.info = grid_v3_channel_info,
 };
 
-static const struct hwmon_chip_info nzxt_grid_v3_chip_info = {
-	.ops = &nzxt_grid_hwmon_ops,
-	.info = nzxt_grid_v3_channel_info,
+static const struct hwmon_channel_info *smart_device_v1_channel_info[] = {
+	HWMON_CHANNEL_INFO(fan, FAN_CHANNEL, FAN_CHANNEL, FAN_CHANNEL),
+	HWMON_CHANNEL_INFO(pwm, PWM_CHANNEL, PWM_CHANNEL, PWM_CHANNEL),
+	HWMON_CHANNEL_INFO(in, IN_CHANNEL, IN_CHANNEL, IN_CHANNEL),
+	HWMON_CHANNEL_INFO(curr, CURR_CHANNEL, CURR_CHANNEL, CURR_CHANNEL), NULL
 };
 
-static const struct hwmon_chip_info nzxt_smart_device_v1_chip_info = {
-	.ops = &nzxt_grid_hwmon_ops,
-	.info = nzxt_smart_device_v1_channel_info,
+static const struct hwmon_chip_info smart_device_v1_chip_info = {
+	.ops = &hwmon_ops,
+	.info = smart_device_v1_channel_info,
 };
 
 enum {
-	nzxt_grid_device_config_grid_v3,
-	nzxt_grid_device_config_smart_device_v1,
-	nzxt_grid_device_config_count
+	DEVICE_CONFIG_GRID_V3,
+	DEVICE_CONFIG_SMART_DEVICE_V1,
+	DEVICE_CONFIG_COUNT
 };
 
-static const struct hwmon_chip_info
-	*nzxt_grid_device_configs[nzxt_grid_device_config_count] = {
-		[nzxt_grid_device_config_grid_v3] = &nzxt_grid_v3_chip_info,
-		[nzxt_grid_device_config_smart_device_v1] =
-			&nzxt_smart_device_v1_chip_info,
-	};
+static const struct hwmon_chip_info *device_configs[DEVICE_CONFIG_COUNT] = {
+	[DEVICE_CONFIG_GRID_V3] = &grid_v3_chip_info,
+	[DEVICE_CONFIG_SMART_DEVICE_V1] = &smart_device_v1_chip_info,
+};
 
-static int nzxt_grid_raw_event(struct hid_device *hdev,
-			       struct hid_report *report, u8 *data, int size)
+static const struct hid_device_id hid_id_table[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_NZXT_GRID_V3),
+	  .driver_data = DEVICE_CONFIG_GRID_V3 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT,
+			 USB_PRODUCT_ID_NZXT_SMART_DEVICE_V1),
+	  .driver_data = DEVICE_CONFIG_SMART_DEVICE_V1 },
+	{}
+};
+
+static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
+			 u8 *data, int size)
 {
-	struct nzxt_grid_device *grid = hid_get_drvdata(hdev);
-	struct nzxt_grid_status_report *status_report;
-	struct nzxt_grid_channel_status *channel_status;
-	uint8_t channel_index;
-	uint8_t fan_type;
-	unsigned long irq_flags;
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+	uint8_t report_id = *data;
 
-	if (size != sizeof(*status_report))
+	if (report_id != INPUT_REPORT_ID_STATUS) {
+		pr_warn("Unknown input report: type %#x, size %d\n", report_id,
+			size);
 		return 0;
-
-	status_report = (void *)data;
-	channel_index = nzxt_grid_get_channel_index(status_report);
-	fan_type = nzxt_grid_get_fan_type(status_report);
-
-	if (channel_index >= NZXT_GRID_MAX_CHANNELS)
-		return 0;
-
-	write_lock_irqsave(&grid->lock, irq_flags);
-
-	channel_status = &grid->channel[channel_index];
-
-	switch (fan_type) {
-	case nzxt_grid_fan_dc:
-	case nzxt_grid_fan_pwm:
-		channel_status->type = (enum nzxt_grid_fan_type)fan_type;
-		break;
-
-	default:
-		channel_status->type = nzxt_grid_fan_none;
 	}
 
-	channel_status->speed_rpm = be16_to_cpup(&status_report->rpm);
-	channel_status->in_millivolt = status_report->in_volt * 1000L +
-				       status_report->in_centivolt * 10L;
-	channel_status->curr_milliamp = status_report->curr_amp * 1000L +
-					status_report->curr_centiamp * 10L;
+	if (size != sizeof(struct status_report)) {
+		pr_warn("Invalid status report size %d\n", size);
+		return 0;
+	}
 
-	write_unlock_irqrestore(&grid->lock, irq_flags);
-
+	update_status(drvdata, (struct status_report *)data);
 	return 0;
 }
 
-static int nzxt_grid_init_or_reset(struct nzxt_grid_device *grid)
+static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
-	/* Without this, the device can't control DC fans.
-	 * Though it detects fan type properly, even without init (?!) */
-	uint8_t *buffer = kzalloc(NZXT_GRID_OUTPUT_REPORT_SIZE, GFP_KERNEL);
+	struct drvdata *drvdata;
 	int ret;
 
-	if (!buffer)
+	drvdata = devm_kzalloc(&hdev->dev, sizeof(struct drvdata), GFP_KERNEL);
+	if (!drvdata)
 		return -ENOMEM;
 
-	buffer[0] = 0x1;
-	buffer[1] = 0x5c;
+	rwlock_init(&drvdata->lock);
 
-	ret = hid_hw_output_report(grid->hid, buffer,
-				   NZXT_GRID_OUTPUT_REPORT_SIZE);
-
-	if (ret < 0)
-		goto fail;
-
-	buffer[0] = 0x1;
-	buffer[1] = 0x5d;
-
-	ret = hid_hw_output_report(grid->hid, buffer,
-				   NZXT_GRID_OUTPUT_REPORT_SIZE);
-
-	if (ret < 0)
-		goto fail;
-
-	ret = 0;
-
-fail:
-	kfree(buffer);
-
-	return ret;
-}
-
-static int nzxt_grid_probe(struct hid_device *hdev,
-			   const struct hid_device_id *id)
-{
-	struct nzxt_grid_device *grid;
-	int ret;
-
-	grid = devm_kzalloc(&hdev->dev, sizeof(struct nzxt_grid_device),
-			    GFP_KERNEL);
-	if (!grid)
-		return -ENOMEM;
-
-	rwlock_init(&grid->lock);
-
-	grid->hid = hdev;
-	hid_set_drvdata(hdev, grid);
+	drvdata->hid = hdev;
+	hid_set_drvdata(hdev, drvdata);
 
 	ret = hid_parse(hdev);
 	if (ret)
@@ -390,15 +437,16 @@ static int nzxt_grid_probe(struct hid_device *hdev,
 
 	hid_device_io_start(hdev);
 
-	ret = nzxt_grid_init_or_reset(grid);
+	ret = send_init_commands(drvdata);
 	if (ret)
 		goto out_hw_close;
 
-	grid->hwmon = hwmon_device_register_with_info(
-		&hdev->dev, "nzxtgrid", grid,
-		nzxt_grid_device_configs[id->driver_data], 0);
-	if (IS_ERR(grid->hwmon)) {
-		ret = PTR_ERR(grid->hwmon);
+	drvdata->hwmon =
+		hwmon_device_register_with_info(&hdev->dev, "nzxtgrid", drvdata,
+						device_configs[id->driver_data],
+						0);
+	if (IS_ERR(drvdata->hwmon)) {
+		ret = PTR_ERR(drvdata->hwmon);
 		goto out_hw_close;
 	}
 
@@ -411,51 +459,36 @@ out_hw_stop:
 	return ret;
 }
 
-static void nzxt_grid_remove(struct hid_device *hdev)
+static void hid_remove(struct hid_device *hdev)
 {
-	struct nzxt_grid_device *grid = hid_get_drvdata(hdev);
-	hwmon_device_unregister(grid->hwmon);
-
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+	hwmon_device_unregister(drvdata->hwmon);
 	hid_hw_close(hdev);
 	hid_hw_stop(hdev);
 }
 
-static const struct hid_report_id nzxt_grid_reports[] = {
-	{ HID_REPORT_ID(NZXT_GRID_STATUS_REPORT_ID) },
-	{}
-};
-
-static const struct hid_device_id nzxt_grid_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT, USB_PRODUCT_ID_NZXT_GRID_V3),
-	  .driver_data = nzxt_grid_device_config_grid_v3 },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_NZXT,
-			 USB_PRODUCT_ID_NZXT_SMART_DEVICE_V1),
-	  .driver_data = nzxt_grid_device_config_smart_device_v1 },
-	{}
-};
-
-static struct hid_driver nzxt_grid_driver = {
+static struct hid_driver driver = {
 	.name = "nzxt-grid",
-	.id_table = nzxt_grid_devices,
-	.probe = nzxt_grid_probe,
-	.remove = nzxt_grid_remove,
-	.report_table = nzxt_grid_reports,
-	.raw_event = nzxt_grid_raw_event,
+	.id_table = hid_id_table,
+	.probe = hid_probe,
+	.remove = hid_remove,
+	.raw_event = hid_raw_event,
 };
 
-static int __init nzxt_grid_init(void)
+static int __init nzxtgrid_init(void)
 {
-	return hid_register_driver(&nzxt_grid_driver);
+	return hid_register_driver(&driver);
 }
 
-static void __exit nzxt_grid_exit(void)
+static void __exit nzxtgrid_exit(void)
 {
-	hid_unregister_driver(&nzxt_grid_driver);
+	hid_unregister_driver(&driver);
 }
 
-MODULE_DEVICE_TABLE(hid, nzxt_grid_devices);
+MODULE_DEVICE_TABLE(hid, hid_id_table);
 MODULE_AUTHOR("Aleksandr Mezin <mezin.alexander@gmail.com>");
-MODULE_DESCRIPTION("Driver for NZXT Grid V3 fan controller");
+MODULE_DESCRIPTION(
+	"Driver for NZXT Grid V3 fan controller/NZXT Smart Device V1");
 MODULE_LICENSE("GPL");
 
 /*
@@ -463,5 +496,5 @@ MODULE_LICENSE("GPL");
  * When compiling this driver as built-in, hwmon initcalls will get called before the
  * hid driver and this driver would fail to register. late_initcall solves this.
  */
-late_initcall(nzxt_grid_init);
-module_exit(nzxt_grid_exit);
+late_initcall(nzxtgrid_init);
+module_exit(nzxtgrid_exit);
