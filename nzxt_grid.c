@@ -22,11 +22,21 @@ struct nzxt_grid_status_report {
 	uint8_t firmware_version_major;
 	__be16 firmware_version_minor;
 	uint8_t firmware_version_patch;
-	uint8_t type : 2;
-	uint8_t unknown3 : 2;
-	uint8_t channel : 4;
+	uint8_t channel_index_and_fan_type;
 	uint8_t unknown4[5];
 } __attribute__((packed));
+
+__always_inline uint8_t
+nzxt_grid_get_channel_index(const struct nzxt_grid_status_report *report)
+{
+	return report->channel_index_and_fan_type >> 4;
+}
+
+__always_inline uint8_t
+nzxt_grid_get_fan_type(const struct nzxt_grid_status_report *report)
+{
+	return report->channel_index_and_fan_type & 0x3;
+}
 
 #define NZXT_GRID_OUTPUT_REPORT_SIZE 65
 
@@ -275,25 +285,28 @@ static int nzxt_grid_raw_event(struct hid_device *hdev,
 	struct nzxt_grid_device *grid = hid_get_drvdata(hdev);
 	struct nzxt_grid_status_report *status_report;
 	struct nzxt_grid_channel_status *channel_status;
+	uint8_t channel_index;
+	uint8_t fan_type;
 	unsigned long irq_flags;
 
 	if (size != sizeof(*status_report))
 		return 0;
 
 	status_report = (void *)data;
+	channel_index = nzxt_grid_get_channel_index(status_report);
+	fan_type = nzxt_grid_get_fan_type(status_report);
 
-	if (status_report->channel >= NZXT_GRID_MAX_CHANNELS)
+	if (channel_index >= NZXT_GRID_MAX_CHANNELS)
 		return 0;
 
 	write_lock_irqsave(&grid->lock, irq_flags);
 
-	channel_status = &grid->channel[status_report->channel];
+	channel_status = &grid->channel[channel_index];
 
-	switch (status_report->type) {
+	switch (fan_type) {
 	case nzxt_grid_fan_dc:
 	case nzxt_grid_fan_pwm:
-		channel_status->type =
-			(enum nzxt_grid_fan_type)(status_report->type);
+		channel_status->type = (enum nzxt_grid_fan_type)fan_type;
 		break;
 
 	default:
