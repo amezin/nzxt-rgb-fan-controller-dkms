@@ -4,6 +4,8 @@ include Kbuild
 
 else
 
+MODNAME := nzxt_grid
+
 KDIR := /lib/modules/$(shell uname -r)/build
 DKMS_VERSION := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_VERSION})
 
@@ -21,11 +23,15 @@ install: modules_install
 %:
 	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
 
-nzxt_grid.ko nzxt_grid.o: nzxt_grid.c Kbuild
+SRC_FILE := $(MODNAME).c
+OBJ_FILE := $(SRC_FILE:.c=.o)
+CMD_FILE := .$(OBJ_FILE).cmd
+
+$(OBJ_FILE) $(MODNAME).ko: $(SRC_FILE) Kbuild
 
 reload:
-	-/sbin/rmmod nzxt_grid
-	/sbin/insmod nzxt_grid.ko
+	-/sbin/rmmod $(MODNAME)
+	/sbin/insmod $(MODNAME).ko
 
 .PHONY: reload
 
@@ -33,27 +39,27 @@ dkms-add:
 	/usr/sbin/dkms add $(CURDIR)
 
 dkms-remove:
-	/usr/sbin/dkms remove nzxt_grid/$(DKMS_VERSION) --all
+	/usr/sbin/dkms remove $(MODNAME)/$(DKMS_VERSION) --all
 
 dkms-build dkms-install dkms-uninstall: dkms-%:
-	/usr/sbin/dkms $* nzxt_grid/$(DKMS_VERSION)
+	/usr/sbin/dkms $* $(MODNAME)/$(DKMS_VERSION)
 
 .PHONY: dkms-add dkms-remove dkms-build dkms-install dkms-uninstall
 
 modprobe:
-	modprobe nzxt_grid
+	modprobe $(MODNAME)
 
 modprobe-remove:
-	modprobe -r nzxt_grid
+	modprobe -r $(MODNAME)
 
 .PHONY: modprobe modprobe-remove
 
 format:
-	clang-format -i nzxt_grid.c
+	clang-format -i $(MODNAME).c
 
 .PHONY: format
 
-compile_commands.json: nzxt_grid.o
+compile_commands.json: $(OBJ_FILE)
 	python3 .vscode/generate_compdb.py -O $(KDIR) $(CURDIR)
 
 endif
