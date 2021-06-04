@@ -7,12 +7,14 @@ else
 KDIR := /lib/modules/$(shell uname -r)/build
 DKMS_VERSION := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_VERSION})
 
+all: modules compile_commands.json
+
 modules clean modules_install:
 	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
 
 install: modules_install
 
-.PHONY: modules clean install modules_install
+.PHONY: all modules clean install modules_install
 
 .SUFFIXES:
 
