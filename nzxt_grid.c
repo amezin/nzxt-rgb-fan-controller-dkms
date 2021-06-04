@@ -444,7 +444,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	drvdata->hwmon =
 		hwmon_device_register_with_info(&hdev->dev, "nzxtgrid", drvdata,
 						device_configs[id->driver_data],
-						0);
+						NULL);
 	if (IS_ERR(drvdata->hwmon)) {
 		ret = PTR_ERR(drvdata->hwmon);
 		goto out_hw_close;
