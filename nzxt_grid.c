@@ -409,6 +409,16 @@ static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
+static int hid_reset_resume(struct hid_device *hdev)
+{
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+	return send_init_command(drvdata, INIT_COMMAND_ID_DETECT_FANS);
+}
+
+#endif
+
 static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct drvdata *drvdata;
@@ -473,6 +483,9 @@ static struct hid_driver driver = {
 	.probe = hid_probe,
 	.remove = hid_remove,
 	.raw_event = hid_raw_event,
+#ifdef CONFIG_PM
+	.reset_resume = hid_reset_resume,
+#endif
 };
 
 static int __init nzxtgrid_init(void)
