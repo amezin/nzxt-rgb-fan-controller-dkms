@@ -50,12 +50,17 @@ enum output_report_id {
 	OUTPUT_REPORT_ID_CHANNEL_COMMAND = 0x2,
 };
 
+enum init_command_id {
+	INIT_COMMAND_ID_DETECT_FANS = 0x5c,
+	/* I don't know what these do, no observable effect, but NZXT CAM sends them */
+	INIT_COMMAND_ID_SOMETHING_OTHER = 0x5d,
+	INIT_COMMAND_ID_SOMETHING_OTHER2 = 0x59,
+};
+
 struct init_command_report {
 	uint8_t report_id; /* OUTPUT_REPORT_ID_INIT_COMMAND = 0x1 */
-	uint8_t command;
+	uint8_t command; /* should be one of init_command_id */
 } __attribute__((__packed__));
-
-static const uint8_t init_command_sequence[] = { 0x5c, 0x5d, 0x59 };
 
 enum channel_command_id {
 	CHANNEL_COMMAND_ID_SET_FAN_SPEED = 0x4d,
@@ -131,28 +136,23 @@ static void update_status(struct drvdata *drvdata, struct status_report *report)
 	}
 }
 
-static int send_init_commands(struct drvdata *drvdata)
+static int send_init_command(struct drvdata *drvdata,
+			     enum init_command_id command)
 {
 	struct init_command_report *report =
-		kzalloc(sizeof(struct init_command_report), GFP_KERNEL);
-	int i;
+		kmalloc(sizeof(struct init_command_report), GFP_KERNEL);
+	int ret;
 
 	if (!report)
 		return -ENOMEM;
 
 	report->report_id = OUTPUT_REPORT_ID_INIT_COMMAND;
+	report->command = command;
 
-	for (i = 0; i < ARRAY_SIZE(init_command_sequence); i++) {
-		int ret;
-		report->command = init_command_sequence[i];
-		ret = hid_hw_output_report(drvdata->hid, (void *)report,
-					   sizeof(*report));
-		if (ret < 0) {
-			pr_warn("Failed to send init command: %d\n", ret);
-			kfree(report);
-			return ret;
-		}
-	}
+	ret = hid_hw_output_report(drvdata->hid, (void *)report,
+				   sizeof(*report));
+	if (ret < 0)
+		pr_warn("Failed to send init command: %d\n", ret);
 
 	kfree(report);
 	return 0;
@@ -437,7 +437,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_device_io_start(hdev);
 
-	ret = send_init_commands(drvdata);
+	ret = send_init_command(drvdata, INIT_COMMAND_ID_DETECT_FANS);
 	if (ret)
 		goto out_hw_close;
 
