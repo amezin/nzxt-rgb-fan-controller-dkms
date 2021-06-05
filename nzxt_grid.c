@@ -76,7 +76,7 @@ struct set_fan_speed_report {
 } __attribute__((__packed__));
 
 struct channel_status {
-	enum fan_type type;
+	enum fan_type fan_type;
 	long speed_rpm;
 	long in_millivolt;
 	long curr_milliamp;
@@ -97,12 +97,12 @@ static void update_channel_status(struct channel_status *status,
 	case FAN_TYPE_NONE:
 	case FAN_TYPE_DC:
 	case FAN_TYPE_PWM:
-		status->type = (enum fan_type)fan_type;
+		status->fan_type = (enum fan_type)fan_type;
 		break;
 
 	default:
 		pr_warn("Invalid fan type %#x\n", fan_type);
-		status->type = FAN_TYPE_INVALID;
+		status->fan_type = FAN_TYPE_INVALID;
 	}
 
 	status->speed_rpm = get_unaligned_be16(&report->rpm);
@@ -172,7 +172,7 @@ static int hwmon_read_fan(struct channel_status *channel_status, u32 attr,
 {
 	switch (attr) {
 	case hwmon_fan_enable:
-		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		*val = (channel_status->fan_type == FAN_TYPE_NONE) ? 0 : 1;
 		return 0;
 
 	case hwmon_fan_input:
@@ -189,11 +189,11 @@ static int hwmon_read_pwm(struct channel_status *channel_status, u32 attr,
 {
 	switch (attr) {
 	case hwmon_pwm_enable:
-		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		*val = (channel_status->fan_type == FAN_TYPE_NONE) ? 0 : 1;
 		return 0;
 
 	case hwmon_pwm_mode:
-		*val = (channel_status->type == FAN_TYPE_PWM) ? 1 : 0;
+		*val = (channel_status->fan_type == FAN_TYPE_PWM) ? 1 : 0;
 		return 0;
 
 	default:
@@ -206,7 +206,7 @@ static int hwmon_read_in(struct channel_status *channel_status, u32 attr,
 {
 	switch (attr) {
 	case hwmon_in_enable:
-		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		*val = (channel_status->fan_type == FAN_TYPE_NONE) ? 0 : 1;
 		return 0;
 
 	case hwmon_in_input:
@@ -223,7 +223,7 @@ static int hwmon_read_curr(struct channel_status *channel_status, u32 attr,
 {
 	switch (attr) {
 	case hwmon_curr_enable:
-		*val = (channel_status->type == FAN_TYPE_NONE) ? 0 : 1;
+		*val = (channel_status->fan_type == FAN_TYPE_NONE) ? 0 : 1;
 		return 0;
 
 	case hwmon_curr_input:
