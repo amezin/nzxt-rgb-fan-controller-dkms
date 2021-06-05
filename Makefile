@@ -53,12 +53,19 @@ modprobe-remove:
 
 .PHONY: modprobe modprobe-remove
 
-format:
+format: .clang-format
 	clang-format -i $(SRC_FILE)
 
 .PHONY: format
 
 compile_commands.json: $(OBJ_FILE)
 	python3 .vscode/generate_compdb.py -O $(KDIR) $(CURDIR)
+
+.clang-format .gitattributes:
+	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
+
+.gitignore: custom.gitignore
+	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
+	cat $< >> $@
 
 endif

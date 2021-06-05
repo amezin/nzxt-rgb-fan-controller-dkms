@@ -1,0 +1,12 @@
+# Additions to kernel's .gitignore
+
+# Include clang-tidy config
+!/.clang-tidy
+
+# Sublime Text
+/*.sublime-workspace
+
+# Arch Linux package
+/*.pkg.tar.*
+/pkg/
+/src/
