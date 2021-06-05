@@ -1,13 +1,11 @@
-ifneq ($(KERNELRELEASE),)
-
 include Kbuild
 
-else
-
-MODNAME := nzxt_grid
+ifeq ($(KERNELRELEASE),)
 
 KDIR := /lib/modules/$(shell uname -r)/build
+DKMS_PACKAGE := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_NAME})
 DKMS_VERSION := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_VERSION})
+DKMS_PV := $(DKMS_PACKAGE)/$(DKMS_VERSION)
 
 all: modules compile_commands.json
 
@@ -23,9 +21,10 @@ install: modules_install
 %:
 	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
 
-SRC_FILE := $(MODNAME).c
-OBJ_FILE := $(SRC_FILE:.c=.o)
+OBJ_FILE := $(obj-m)
+SRC_FILE := $(OBJ_FILE:.o=.c)
 CMD_FILE := .$(OBJ_FILE).cmd
+MODNAME := $(OBJ_FILE:.o=)
 
 $(OBJ_FILE) $(MODNAME).ko: $(SRC_FILE) Kbuild
 
@@ -39,10 +38,10 @@ dkms-add:
 	/usr/sbin/dkms add $(CURDIR)
 
 dkms-remove:
-	/usr/sbin/dkms remove $(MODNAME)/$(DKMS_VERSION) --all
+	/usr/sbin/dkms remove $(DKMS_PV) --all
 
 dkms-build dkms-install dkms-uninstall: dkms-%:
-	/usr/sbin/dkms $* $(MODNAME)/$(DKMS_VERSION)
+	/usr/sbin/dkms $* $(DKMS_PV)
 
 .PHONY: dkms-add dkms-remove dkms-build dkms-install dkms-uninstall
 
@@ -55,7 +54,7 @@ modprobe-remove:
 .PHONY: modprobe modprobe-remove
 
 format:
-	clang-format -i $(MODNAME).c
+	clang-format -i $(SRC_FILE)
 
 .PHONY: format
 
