@@ -419,6 +419,21 @@ static int hid_reset_resume(struct hid_device *hdev)
 
 #endif
 
+static ssize_t detect_fans_store(struct device *dev,
+				 struct device_attribute *attr, const char *buf,
+				 size_t len)
+{
+	struct drvdata *drvdata = dev_get_drvdata(dev);
+	int ret = send_init_command(drvdata, INIT_COMMAND_ID_DETECT_FANS);
+	return (ret == 0) ? len : ret;
+}
+
+static DEVICE_ATTR_WO(detect_fans);
+
+static struct attribute *extra_attrs[] = { &dev_attr_detect_fans.attr, NULL };
+
+ATTRIBUTE_GROUPS(extra);
+
 static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct drvdata *drvdata;
@@ -454,7 +469,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	drvdata->hwmon =
 		hwmon_device_register_with_info(&hdev->dev, "nzxtgrid", drvdata,
 						device_configs[id->driver_data],
-						NULL);
+						extra_groups);
 	if (IS_ERR(drvdata->hwmon)) {
 		ret = PTR_ERR(drvdata->hwmon);
 		goto out_hw_close;
