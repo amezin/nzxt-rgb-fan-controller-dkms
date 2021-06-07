@@ -1,1 +1,1 @@
-obj-m := nzxt_grid.o
+obj-m := nzxt_rgb_fan_controller.o
