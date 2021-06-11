@@ -1,0 +1,759 @@
+
+//--------------------------------------------------------------------------------
+// Decoded Application Collection
+//--------------------------------------------------------------------------------
+
+/*
+06 00FF      (GLOBAL) USAGE_PAGE         0xFF00 Vendor-defined 
+09 01        (LOCAL)  USAGE              0xFF000001 <-- Warning: Undocumented usage (document it by inserting 0001 into file FF00.conf)
+A1 01        (MAIN)   COLLECTION         0x01 Application (Usage=0xFF000001: Page=Vendor-defined, Usage=, Type=) <-- Error: COLLECTION must be preceded by a known USAGE
+85 10          (GLOBAL) REPORT_ID          0x10 (16)  
+09 01          (LOCAL)  USAGE              0xFF000001 <-- Warning: Undocumented usage (document it by inserting 0001 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0)  <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255)  
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field  
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields  
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 10          (GLOBAL) REPORT_ID          0x10 (16) <-- Redundant: REPORT_ID is already 0x10 
+09 01          (LOCAL)  USAGE              0xFF000001 <-- Warning: Undocumented usage (document it by inserting 0001 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 12          (GLOBAL) REPORT_ID          0x12 (18)  
+09 02          (LOCAL)  USAGE              0xFF000002 <-- Warning: Undocumented usage (document it by inserting 0002 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 12          (GLOBAL) REPORT_ID          0x12 (18) <-- Redundant: REPORT_ID is already 0x12 
+09 02          (LOCAL)  USAGE              0xFF000002 <-- Warning: Undocumented usage (document it by inserting 0002 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 20          (GLOBAL) REPORT_ID          0x20 (32)  
+09 03          (LOCAL)  USAGE              0xFF000003 <-- Warning: Undocumented usage (document it by inserting 0003 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 20          (GLOBAL) REPORT_ID          0x20 (32) <-- Redundant: REPORT_ID is already 0x20 
+09 03          (LOCAL)  USAGE              0xFF000003 <-- Warning: Undocumented usage (document it by inserting 0003 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 22          (GLOBAL) REPORT_ID          0x22 (34)  
+09 04          (LOCAL)  USAGE              0xFF000004 <-- Warning: Undocumented usage (document it by inserting 0004 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 22          (GLOBAL) REPORT_ID          0x22 (34) <-- Redundant: REPORT_ID is already 0x22 
+09 04          (LOCAL)  USAGE              0xFF000004 <-- Warning: Undocumented usage (document it by inserting 0004 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 24          (GLOBAL) REPORT_ID          0x24 (36)  
+09 05          (LOCAL)  USAGE              0xFF000005 <-- Warning: Undocumented usage (document it by inserting 0005 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 24          (GLOBAL) REPORT_ID          0x24 (36) <-- Redundant: REPORT_ID is already 0x24 
+09 05          (LOCAL)  USAGE              0xFF000005 <-- Warning: Undocumented usage (document it by inserting 0005 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 26          (GLOBAL) REPORT_ID          0x26 (38)  
+09 06          (LOCAL)  USAGE              0xFF000006 <-- Warning: Undocumented usage (document it by inserting 0006 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 26          (GLOBAL) REPORT_ID          0x26 (38) <-- Redundant: REPORT_ID is already 0x26 
+09 06          (LOCAL)  USAGE              0xFF000006 <-- Warning: Undocumented usage (document it by inserting 0006 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 28          (GLOBAL) REPORT_ID          0x28 (40)  
+09 07          (LOCAL)  USAGE              0xFF000007 <-- Warning: Undocumented usage (document it by inserting 0007 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 28          (GLOBAL) REPORT_ID          0x28 (40) <-- Redundant: REPORT_ID is already 0x28 
+09 07          (LOCAL)  USAGE              0xFF000007 <-- Warning: Undocumented usage (document it by inserting 0007 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 F2          (GLOBAL) REPORT_ID          0xF2 (242)  
+09 08          (LOCAL)  USAGE              0xFF000008 <-- Warning: Undocumented usage (document it by inserting 0008 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 F2          (GLOBAL) REPORT_ID          0xF2 (242) <-- Redundant: REPORT_ID is already 0xF2 
+09 08          (LOCAL)  USAGE              0xFF000008 <-- Warning: Undocumented usage (document it by inserting 0008 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 FE          (GLOBAL) REPORT_ID          0xFE (254)  
+09 09          (LOCAL)  USAGE              0xFF000009 <-- Warning: Undocumented usage (document it by inserting 0009 into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 FE          (GLOBAL) REPORT_ID          0xFE (254) <-- Redundant: REPORT_ID is already 0xFE 
+09 09          (LOCAL)  USAGE              0xFF000009 <-- Warning: Undocumented usage (document it by inserting 0009 into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 FA          (GLOBAL) REPORT_ID          0xFA (250)  
+09 0A          (LOCAL)  USAGE              0xFF00000A <-- Warning: Undocumented usage (document it by inserting 000A into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 FA          (GLOBAL) REPORT_ID          0xFA (250) <-- Redundant: REPORT_ID is already 0xFA 
+09 0A          (LOCAL)  USAGE              0xFF00000A <-- Warning: Undocumented usage (document it by inserting 000A into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 A2          (GLOBAL) REPORT_ID          0xA2 (162)  
+09 0B          (LOCAL)  USAGE              0xFF00000B <-- Warning: Undocumented usage (document it by inserting 000B into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 A2          (GLOBAL) REPORT_ID          0xA2 (162) <-- Redundant: REPORT_ID is already 0xA2 
+09 0B          (LOCAL)  USAGE              0xFF00000B <-- Warning: Undocumented usage (document it by inserting 000B into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 60          (GLOBAL) REPORT_ID          0x60 (96)  
+09 0C          (LOCAL)  USAGE              0xFF00000C <-- Warning: Undocumented usage (document it by inserting 000C into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 60          (GLOBAL) REPORT_ID          0x60 (96) <-- Redundant: REPORT_ID is already 0x60 
+09 0C          (LOCAL)  USAGE              0xFF00000C <-- Warning: Undocumented usage (document it by inserting 000C into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 62          (GLOBAL) REPORT_ID          0x62 (98) 'b'  
+09 0D          (LOCAL)  USAGE              0xFF00000D <-- Warning: Undocumented usage (document it by inserting 000D into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 62          (GLOBAL) REPORT_ID          0x62 (98) 'b' <-- Redundant: REPORT_ID is already 0x62 
+09 0D          (LOCAL)  USAGE              0xFF00000D <-- Warning: Undocumented usage (document it by inserting 000D into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 66          (GLOBAL) REPORT_ID          0x66 (102) 'f'  
+09 0E          (LOCAL)  USAGE              0xFF00000E <-- Warning: Undocumented usage (document it by inserting 000E into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 66          (GLOBAL) REPORT_ID          0x66 (102) 'f' <-- Redundant: REPORT_ID is already 0x66 
+09 0E          (LOCAL)  USAGE              0xFF00000E <-- Warning: Undocumented usage (document it by inserting 000E into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 64          (GLOBAL) REPORT_ID          0x64 (100) 'd'  
+09 0F          (LOCAL)  USAGE              0xFF00000F <-- Warning: Undocumented usage (document it by inserting 000F into file FF00.conf)
+15 00          (GLOBAL) LOGICAL_MINIMUM    0x00 (0) <-- Redundant: LOGICAL_MINIMUM is already 0 <-- Info: Consider replacing 15 00 with 14
+26 FF00        (GLOBAL) LOGICAL_MAXIMUM    0x00FF (255) <-- Redundant: LOGICAL_MAXIMUM is already 255 
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+B1 82          (MAIN)   FEATURE            0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 64          (GLOBAL) REPORT_ID          0x64 (100) 'd' <-- Redundant: REPORT_ID is already 0x64 
+09 0F          (LOCAL)  USAGE              0xFF00000F <-- Warning: Undocumented usage (document it by inserting 000F into file FF00.conf)
+91 82          (MAIN)   OUTPUT             0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 11          (GLOBAL) REPORT_ID          0x11 (17)  
+09 10          (LOCAL)  USAGE              0xFF000010 <-- Warning: Undocumented usage (document it by inserting 0010 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 13          (GLOBAL) REPORT_ID          0x13 (19)  
+09 11          (LOCAL)  USAGE              0xFF000011 <-- Warning: Undocumented usage (document it by inserting 0011 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 21          (GLOBAL) REPORT_ID          0x21 (33)  
+09 12          (LOCAL)  USAGE              0xFF000012 <-- Warning: Undocumented usage (document it by inserting 0012 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 23          (GLOBAL) REPORT_ID          0x23 (35)  
+09 13          (LOCAL)  USAGE              0xFF000013 <-- Warning: Undocumented usage (document it by inserting 0013 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 25          (GLOBAL) REPORT_ID          0x25 (37)  
+09 14          (LOCAL)  USAGE              0xFF000014 <-- Warning: Undocumented usage (document it by inserting 0014 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 27          (GLOBAL) REPORT_ID          0x27 (39)  
+09 15          (LOCAL)  USAGE              0xFF000015 <-- Warning: Undocumented usage (document it by inserting 0015 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 29          (GLOBAL) REPORT_ID          0x29 (41)  
+09 16          (LOCAL)  USAGE              0xFF000016 <-- Warning: Undocumented usage (document it by inserting 0016 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 FF          (GLOBAL) REPORT_ID          0xFF (255)  
+09 17          (LOCAL)  USAGE              0xFF000017 <-- Warning: Undocumented usage (document it by inserting 0017 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 FB          (GLOBAL) REPORT_ID          0xFB (251)  
+09 18          (LOCAL)  USAGE              0xFF000018 <-- Warning: Undocumented usage (document it by inserting 0018 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 A3          (GLOBAL) REPORT_ID          0xA3 (163)  
+09 19          (LOCAL)  USAGE              0xFF000019 <-- Warning: Undocumented usage (document it by inserting 0019 into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 61          (GLOBAL) REPORT_ID          0x61 (97) 'a'  
+09 1A          (LOCAL)  USAGE              0xFF00001A <-- Warning: Undocumented usage (document it by inserting 001A into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 63          (GLOBAL) REPORT_ID          0x63 (99) 'c'  
+09 1B          (LOCAL)  USAGE              0xFF00001B <-- Warning: Undocumented usage (document it by inserting 001B into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 67          (GLOBAL) REPORT_ID          0x67 (103) 'g'  
+09 1C          (LOCAL)  USAGE              0xFF00001C <-- Warning: Undocumented usage (document it by inserting 001C into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+85 65          (GLOBAL) REPORT_ID          0x65 (101) 'e'  
+09 1D          (LOCAL)  USAGE              0xFF00001D <-- Warning: Undocumented usage (document it by inserting 001D into file FF00.conf)
+75 08          (GLOBAL) REPORT_SIZE        0x08 (8) Number of bits per field <-- Redundant: REPORT_SIZE is already 8 
+95 3F          (GLOBAL) REPORT_COUNT       0x3F (63) Number of fields <-- Redundant: REPORT_COUNT is already 63 
+81 82          (MAIN)   INPUT              0x00000082 (63 fields x 8 bits) 0=Data 1=Variable 0=Absolute 0=NoWrap 0=Linear 0=PrefState 0=NoNull 1=Volatile 0=Bitmap 
+C0           (MAIN)   END_COLLECTION     Application 
+*/
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 10 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x10 (16)
+                                                     // Collection: CA:
+  uint8_t  VEN_0001[63];                             // Usage 0xFF000001: , Value = 0 to 255
+} featureReport10_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 12 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x12 (18)
+                                                     // Collection: CA:
+  uint8_t  VEN_0002[63];                             // Usage 0xFF000002: , Value = 0 to 255
+} featureReport12_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 20 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x20 (32)
+                                                     // Collection: CA:
+  uint8_t  VEN_0003[63];                             // Usage 0xFF000003: , Value = 0 to 255
+} featureReport20_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 22 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x22 (34)
+                                                     // Collection: CA:
+  uint8_t  VEN_0004[63];                             // Usage 0xFF000004: , Value = 0 to 255
+} featureReport22_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 24 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x24 (36)
+                                                     // Collection: CA:
+  uint8_t  VEN_0005[63];                             // Usage 0xFF000005: , Value = 0 to 255
+} featureReport24_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 26 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x26 (38)
+                                                     // Collection: CA:
+  uint8_t  VEN_0006[63];                             // Usage 0xFF000006: , Value = 0 to 255
+} featureReport26_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 28 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x28 (40)
+                                                     // Collection: CA:
+  uint8_t  VEN_0007[63];                             // Usage 0xFF000007: , Value = 0 to 255
+} featureReport28_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport F2 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xF2 (242)
+                                                     // Collection: CA:
+  uint8_t  VEN_0008[63];                             // Usage 0xFF000008: , Value = 0 to 255
+} featureReportF2_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport FE (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xFE (254)
+                                                     // Collection: CA:
+  uint8_t  VEN_0009[63];                             // Usage 0xFF000009: , Value = 0 to 255
+} featureReportFE_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport FA (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xFA (250)
+                                                     // Collection: CA:
+  uint8_t  VEN_000A[63];                             // Usage 0xFF00000A: , Value = 0 to 255
+} featureReportFA_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport A2 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xA2 (162)
+                                                     // Collection: CA:
+  uint8_t  VEN_000B[63];                             // Usage 0xFF00000B: , Value = 0 to 255
+} featureReportA2_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 60 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x60 (96)
+                                                     // Collection: CA:
+  uint8_t  VEN_000C[63];                             // Usage 0xFF00000C: , Value = 0 to 255
+} featureReport60_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 62 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x62 (98) 'b'
+                                                     // Collection: CA:
+  uint8_t  VEN_000D[63];                             // Usage 0xFF00000D: , Value = 0 to 255
+} featureReport62_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 66 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x66 (102) 'f'
+                                                     // Collection: CA:
+  uint8_t  VEN_000E[63];                             // Usage 0xFF00000E: , Value = 0 to 255
+} featureReport66_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined featureReport 64 (Device <-> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x64 (100) 'd'
+                                                     // Collection: CA:
+  uint8_t  VEN_000F[63];                             // Usage 0xFF00000F: , Value = 0 to 255
+} featureReport64_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 11 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x11 (17)
+                                                     // Collection: CA:
+  uint8_t  VEN_0010[63];                             // Usage 0xFF000010: , Value = 0 to 255
+} inputReport11_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 13 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x13 (19)
+                                                     // Collection: CA:
+  uint8_t  VEN_0011[63];                             // Usage 0xFF000011: , Value = 0 to 255
+} inputReport13_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 21 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x21 (33)
+                                                     // Collection: CA:
+  uint8_t  VEN_0012[63];                             // Usage 0xFF000012: , Value = 0 to 255
+} inputReport21_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 23 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x23 (35)
+                                                     // Collection: CA:
+  uint8_t  VEN_0013[63];                             // Usage 0xFF000013: , Value = 0 to 255
+} inputReport23_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 25 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x25 (37)
+                                                     // Collection: CA:
+  uint8_t  VEN_0014[63];                             // Usage 0xFF000014: , Value = 0 to 255
+} inputReport25_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 27 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x27 (39)
+                                                     // Collection: CA:
+  uint8_t  VEN_0015[63];                             // Usage 0xFF000015: , Value = 0 to 255
+} inputReport27_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 29 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x29 (41)
+                                                     // Collection: CA:
+  uint8_t  VEN_0016[63];                             // Usage 0xFF000016: , Value = 0 to 255
+} inputReport29_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport FF (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xFF (255)
+                                                     // Collection: CA:
+  uint8_t  VEN_0017[63];                             // Usage 0xFF000017: , Value = 0 to 255
+} inputReportFF_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport FB (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xFB (251)
+                                                     // Collection: CA:
+  uint8_t  VEN_0018[63];                             // Usage 0xFF000018: , Value = 0 to 255
+} inputReportFB_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport A3 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xA3 (163)
+                                                     // Collection: CA:
+  uint8_t  VEN_0019[63];                             // Usage 0xFF000019: , Value = 0 to 255
+} inputReportA3_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 61 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x61 (97) 'a'
+                                                     // Collection: CA:
+  uint8_t  VEN_001A[63];                             // Usage 0xFF00001A: , Value = 0 to 255
+} inputReport61_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 63 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x63 (99) 'c'
+                                                     // Collection: CA:
+  uint8_t  VEN_001B[63];                             // Usage 0xFF00001B: , Value = 0 to 255
+} inputReport63_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 67 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x67 (103) 'g'
+                                                     // Collection: CA:
+  uint8_t  VEN_001C[63];                             // Usage 0xFF00001C: , Value = 0 to 255
+} inputReport67_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined inputReport 65 (Device --> Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x65 (101) 'e'
+                                                     // Collection: CA:
+  uint8_t  VEN_001D[63];                             // Usage 0xFF00001D: , Value = 0 to 255
+} inputReport65_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 10 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x10 (16)
+                                                     // Collection: CA:
+  uint8_t  VEN_0001[63];                             // Usage 0xFF000001: , Value = 0 to 255
+} outputReport10_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 12 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x12 (18)
+                                                     // Collection: CA:
+  uint8_t  VEN_0002[63];                             // Usage 0xFF000002: , Value = 0 to 255
+} outputReport12_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 20 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x20 (32)
+                                                     // Collection: CA:
+  uint8_t  VEN_0003[63];                             // Usage 0xFF000003: , Value = 0 to 255
+} outputReport20_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 22 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x22 (34)
+                                                     // Collection: CA:
+  uint8_t  VEN_0004[63];                             // Usage 0xFF000004: , Value = 0 to 255
+} outputReport22_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 24 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x24 (36)
+                                                     // Collection: CA:
+  uint8_t  VEN_0005[63];                             // Usage 0xFF000005: , Value = 0 to 255
+} outputReport24_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 26 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x26 (38)
+                                                     // Collection: CA:
+  uint8_t  VEN_0006[63];                             // Usage 0xFF000006: , Value = 0 to 255
+} outputReport26_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 28 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x28 (40)
+                                                     // Collection: CA:
+  uint8_t  VEN_0007[63];                             // Usage 0xFF000007: , Value = 0 to 255
+} outputReport28_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport F2 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xF2 (242)
+                                                     // Collection: CA:
+  uint8_t  VEN_0008[63];                             // Usage 0xFF000008: , Value = 0 to 255
+} outputReportF2_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport FE (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xFE (254)
+                                                     // Collection: CA:
+  uint8_t  VEN_0009[63];                             // Usage 0xFF000009: , Value = 0 to 255
+} outputReportFE_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport FA (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xFA (250)
+                                                     // Collection: CA:
+  uint8_t  VEN_000A[63];                             // Usage 0xFF00000A: , Value = 0 to 255
+} outputReportFA_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport A2 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0xA2 (162)
+                                                     // Collection: CA:
+  uint8_t  VEN_000B[63];                             // Usage 0xFF00000B: , Value = 0 to 255
+} outputReportA2_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 60 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x60 (96)
+                                                     // Collection: CA:
+  uint8_t  VEN_000C[63];                             // Usage 0xFF00000C: , Value = 0 to 255
+} outputReport60_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 62 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x62 (98) 'b'
+                                                     // Collection: CA:
+  uint8_t  VEN_000D[63];                             // Usage 0xFF00000D: , Value = 0 to 255
+} outputReport62_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 66 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x66 (102) 'f'
+                                                     // Collection: CA:
+  uint8_t  VEN_000E[63];                             // Usage 0xFF00000E: , Value = 0 to 255
+} outputReport66_t;
+
+
+//--------------------------------------------------------------------------------
+// Vendor-defined outputReport 64 (Device <-- Host)
+//--------------------------------------------------------------------------------
+
+typedef struct
+{
+  uint8_t  reportId;                                 // Report ID = 0x64 (100) 'd'
+                                                     // Collection: CA:
+  uint8_t  VEN_000F[63];                             // Usage 0xFF00000F: , Value = 0 to 255
+} outputReport64_t;
+
