@@ -5,7 +5,6 @@ ifeq ($(KERNELRELEASE),)
 KDIR := /lib/modules/$(shell uname -r)/build
 DKMS_PACKAGE := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_NAME})
 DKMS_VERSION := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_VERSION})
-DKMS_PV := $(DKMS_PACKAGE)/$(DKMS_VERSION)
 
 all: modules compile_commands.json
 
@@ -38,10 +37,10 @@ dkms-add:
 	/usr/sbin/dkms add $(CURDIR)
 
 dkms-remove:
-	/usr/sbin/dkms remove $(DKMS_PV) --all
+	/usr/sbin/dkms remove $(DKMS_PACKAGE)/$(DKMS_VERSION) --all
 
 dkms-build dkms-install dkms-uninstall: dkms-%:
-	/usr/sbin/dkms $* $(DKMS_PV)
+	/usr/sbin/dkms $* .
 
 .PHONY: dkms-add dkms-remove dkms-build dkms-install dkms-uninstall
 
