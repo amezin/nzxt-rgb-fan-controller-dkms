@@ -14,7 +14,6 @@
 				"command":
 				[
 					"clangd",
-					"--compile-commands-dir=build",
 					"--background-index",
 					"--suggest-missing-includes",
 					"--header-insertion=never",
