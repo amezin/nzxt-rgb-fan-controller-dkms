@@ -1,0 +1,12 @@
+CompileFlags:
+  Remove:
+    - "-fno-allow-store-data-races"
+    - "-fplugin-arg-structleak_plugin-byref-all"
+    - "-mindirect-branch-register"
+    - "-mindirect-branch=thunk-extern"
+    - "-mno-fp-ret-in-387"
+    - "-mpreferred-stack-boundary=*"
+    - "-mskip-rax-setup"
+    - "-mrecord-mcount"
+
+CompilationDatabase: .

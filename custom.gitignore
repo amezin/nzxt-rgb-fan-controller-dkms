@@ -3,6 +3,9 @@
 # Include clang-tidy config
 !/.clang-tidy
 
+# Include clangd config
+!/.clangd
+
 # Sublime Text
 /*.sublime-workspace
 
