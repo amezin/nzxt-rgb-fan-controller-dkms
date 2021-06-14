@@ -212,7 +212,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hwmon =
 		hwmon_device_register_with_info(&hdev->dev,
-						"nzxt-rgb-fan-controller",
+						"nzxt_rgb_fan_controller",
 						drvdata, &chip_info, NULL);
 	if (IS_ERR(drvdata->hwmon)) {
 		ret = PTR_ERR(drvdata->hwmon);
@@ -244,7 +244,7 @@ static const struct hid_device_id hid_id_table[] = {
 };
 
 static struct hid_driver hid_driver = {
-	.name = "nzxt-rgb-fan-controller",
+	.name = "nzxt_rgb_fan_controller",
 	.id_table = hid_id_table,
 	.probe = hid_probe,
 	.remove = hid_remove,
