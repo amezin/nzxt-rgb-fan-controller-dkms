@@ -79,14 +79,18 @@ static const uint8_t INIT_DATA[][64] = {
 	  0x03 }
 };
 
+struct fan_channel_status {
+	uint8_t type;
+	uint8_t duty_percent;
+	uint16_t rpm;
+	uint16_t in;
+	uint16_t curr;
+};
+
 struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
-	uint8_t fan_type[FAN_CHANNELS];
-	uint8_t fan_duty_percent[FAN_CHANNELS];
-	uint16_t fan_rpm[FAN_CHANNELS];
-	uint16_t fan_in[FAN_CHANNELS];
-	uint16_t fan_current[FAN_CHANNELS];
+	struct fan_channel_status fan[FAN_CHANNELS];
 };
 
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
@@ -101,24 +105,23 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 		return;
 	}
 
-	for (i = 0; i < FAN_CHANNELS; i++) {
-		drvdata->fan_type[i] = report->fan_type[i];
-	}
-
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
 		for (i = 0; i < FAN_CHANNELS; i++) {
-			drvdata->fan_rpm[i] = get_unaligned_le16(
+			struct fan_channel_status *fan = &drvdata->fan[i];
+			fan->type = report->fan_type[i];
+			fan->rpm = get_unaligned_le16(
 				&report->fan_speed.fan_rpm[i]);
-			drvdata->fan_duty_percent[i] =
-				report->fan_speed.duty_percent[i];
+			fan->duty_percent = report->fan_speed.duty_percent[i];
 		}
 		return;
 	case FAN_STATUS_REPORT_VOLTAGE:
 		for (i = 0; i < FAN_CHANNELS; i++) {
-			drvdata->fan_in[i] = get_unaligned_le16(
+			struct fan_channel_status *fan = &drvdata->fan[i];
+			fan->type = report->fan_type[i];
+			fan->in = get_unaligned_le16(
 				&report->fan_voltage.fan_in[i]);
-			drvdata->fan_current[i] = get_unaligned_le16(
+			fan->curr = get_unaligned_le16(
 				&report->fan_voltage.fan_current[i]);
 		}
 		return;
@@ -126,90 +129,6 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 		pr_warn("Unexpected value of 'type' field: %d (report size %d)\n",
 			report->type, size);
 		return;
-	}
-}
-
-static int hwmon_read_fan(struct drvdata *drvdata, u32 attr, int channel,
-			  long *val)
-{
-	switch (attr) {
-	case hwmon_fan_enable:
-		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
-		return 0;
-
-	case hwmon_fan_input:
-		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
-			return -ENODATA;
-
-		*val = drvdata->fan_rpm[channel];
-		return 0;
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static int hwmon_read_pwm(struct drvdata *drvdata, u32 attr, int channel,
-			  long *val)
-{
-	switch (attr) {
-	case hwmon_pwm_enable:
-		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
-		return 0;
-
-	case hwmon_pwm_mode:
-		*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
-		return 0;
-
-	case hwmon_pwm_input:
-		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
-			return -ENODATA;
-
-		*val = drvdata->fan_duty_percent[channel] * 255 / 100;
-		return 0;
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static int hwmon_read_in(struct drvdata *drvdata, u32 attr, int channel,
-			 long *val)
-{
-	switch (attr) {
-	case hwmon_in_enable:
-		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
-		return 0;
-
-	case hwmon_in_input:
-		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
-			return -ENODATA;
-
-		*val = drvdata->fan_in[channel];
-		return 0;
-
-	default:
-		return -EINVAL;
-	}
-}
-
-static int hwmon_read_curr(struct drvdata *drvdata, u32 attr, int channel,
-			   long *val)
-{
-	switch (attr) {
-	case hwmon_curr_enable:
-		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
-		return 0;
-
-	case hwmon_curr_input:
-		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
-			return -ENODATA;
-
-		*val = drvdata->fan_current[channel];
-		return 0;
-
-	default:
-		return -EINVAL;
 	}
 }
 
@@ -226,19 +145,80 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		      u32 attr, int channel, long *val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
+	struct fan_channel_status *fan = &drvdata->fan[channel];
 
 	switch (type) {
 	case hwmon_fan:
-		return hwmon_read_fan(drvdata, attr, channel, val);
+		switch (attr) {
+		case hwmon_fan_enable:
+			*val = fan->type != FAN_TYPE_NONE;
+			return 0;
+
+		case hwmon_fan_input:
+			if (fan->type == FAN_TYPE_NONE)
+				return -ENODATA;
+
+			*val = fan->rpm;
+			return 0;
+
+		default:
+			return -EINVAL;
+		}
 
 	case hwmon_pwm:
-		return hwmon_read_pwm(drvdata, attr, channel, val);
+		switch (attr) {
+		case hwmon_pwm_enable:
+			*val = fan->type != FAN_TYPE_NONE;
+			return 0;
+
+		case hwmon_pwm_mode:
+			*val = fan->type == FAN_TYPE_PWM;
+			return 0;
+
+		case hwmon_pwm_input:
+			if (fan->type == FAN_TYPE_NONE)
+				return -ENODATA;
+
+			*val = fan->duty_percent * 255 / 100;
+			return 0;
+
+		default:
+			return -EINVAL;
+		}
 
 	case hwmon_in:
-		return hwmon_read_in(drvdata, attr, channel, val);
+		switch (attr) {
+		case hwmon_in_enable:
+			*val = fan->type != FAN_TYPE_NONE;
+			return 0;
+
+		case hwmon_in_input:
+			if (fan->type == FAN_TYPE_NONE)
+				return -ENODATA;
+
+			*val = fan->in;
+			return 0;
+
+		default:
+			return -EINVAL;
+		}
 
 	case hwmon_curr:
-		return hwmon_read_curr(drvdata, attr, channel, val);
+		switch (attr) {
+		case hwmon_curr_enable:
+			*val = fan->type != FAN_TYPE_NONE;
+			return 0;
+
+		case hwmon_curr_input:
+			if (fan->type == FAN_TYPE_NONE)
+				return -ENODATA;
+
+			*val = fan->curr;
+			return 0;
+
+		default:
+			return -EINVAL;
+		}
 
 	default:
 		return -EINVAL;
