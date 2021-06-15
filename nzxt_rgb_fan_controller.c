@@ -29,7 +29,9 @@ struct fan_status_report {
 	uint8_t report_id;
 	/* FAN_STATUS_REPORT_SPEED = 0x02 or FAN_STATUS_REPORT_VOLTAGE = 0x04 */
 	uint8_t type;
-	/* Some configuration data? Doesn't change with fan speed. Same for both 'type' values. */
+	/* Some configuration data? Stays the same after fan speed changes,
+	 * changes in fan configuration, reboots and driver reloads.
+	 * Byte 12 seems to be the number of fan channels, but I am not sure. */
 	uint8_t unknown1[14];
 	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
 	uint8_t fan_type[FAN_CHANNELS_MAX];
