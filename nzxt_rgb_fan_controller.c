@@ -307,13 +307,9 @@ static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 	uint8_t report_id = *data;
 
-	if (report_id != INPUT_REPORT_ID_FAN_STATUS) {
-		pr_warn("Unknown input report: id %#x, size %d\n", report_id,
-			size);
-		return 0;
-	}
+	if (report_id == INPUT_REPORT_ID_FAN_STATUS)
+		handle_fan_status_report(drvdata, data, size);
 
-	handle_fan_status_report(drvdata, data, size);
 	return 0;
 }
 
