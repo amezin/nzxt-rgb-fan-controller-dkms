@@ -67,4 +67,12 @@ compile_commands.json: $(OBJ_FILE)
 	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
 	cat $< >> $@
 
+checkpatch:
+	$(KDIR)/scripts/checkpatch.pl --no-tree -f $(SRC_FILE)
+
+checkpatch-fix:
+	$(KDIR)/scripts/checkpatch.pl --no-tree --fix-inplace -f $(SRC_FILE)
+
+.PHONY: checkpatch checkpatch-fix
+
 endif
