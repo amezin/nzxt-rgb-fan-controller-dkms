@@ -22,13 +22,17 @@ enum { INPUT_REPORT_ID_FAN_STATUS = 0x67 };
 
 enum { FAN_STATUS_REPORT_SPEED = 0x02, FAN_STATUS_REPORT_VOLTAGE = 0x04 };
 
+enum { FAN_TYPE_NONE = 0, FAN_TYPE_DC = 1, FAN_TYPE_PWM = 2 };
+
 struct fan_status_report {
 	/* report_id should be INPUT_REPORT_ID_STATUS = 0x67 */
 	uint8_t report_id;
 	/* FAN_STATUS_REPORT_SPEED = 0x02 or FAN_STATUS_REPORT_VOLTAGE = 0x04 */
 	uint8_t type;
 	/* Some configuration data? Doesn't change with fan speed. Same for both 'type' values. */
-	uint8_t unknown1[22];
+	uint8_t unknown1[14];
+	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
+	uint8_t fan_type[FAN_CHANNELS_MAX];
 
 	union {
 		struct {
@@ -78,8 +82,9 @@ static const uint8_t INIT_DATA[][64] = {
 struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
-	uint16_t fan_rpm[FAN_CHANNELS];
+	uint8_t fan_type[FAN_CHANNELS];
 	uint8_t fan_duty_percent[FAN_CHANNELS];
+	uint16_t fan_rpm[FAN_CHANNELS];
 	uint16_t fan_in[FAN_CHANNELS];
 	uint16_t fan_current[FAN_CHANNELS];
 };
@@ -94,6 +99,10 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 		pr_warn("Status report size is wrong: %d (should be %zu)\n",
 			size, sizeof(struct fan_status_report));
 		return;
+	}
+
+	for (i = 0; i < FAN_CHANNELS; i++) {
+		drvdata->fan_type[i] = report->fan_type[i];
 	}
 
 	switch (report->type) {
@@ -124,7 +133,14 @@ static int hwmon_read_fan(struct drvdata *drvdata, u32 attr, int channel,
 			  long *val)
 {
 	switch (attr) {
+	case hwmon_fan_enable:
+		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+		return 0;
+
 	case hwmon_fan_input:
+		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
+			return -ENODATA;
+
 		*val = drvdata->fan_rpm[channel];
 		return 0;
 
@@ -137,7 +153,18 @@ static int hwmon_read_pwm(struct drvdata *drvdata, u32 attr, int channel,
 			  long *val)
 {
 	switch (attr) {
+	case hwmon_pwm_enable:
+		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+		return 0;
+
+	case hwmon_pwm_mode:
+		*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
+		return 0;
+
 	case hwmon_pwm_input:
+		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
+			return -ENODATA;
+
 		*val = drvdata->fan_duty_percent[channel] * 255 / 100;
 		return 0;
 
@@ -150,7 +177,14 @@ static int hwmon_read_in(struct drvdata *drvdata, u32 attr, int channel,
 			 long *val)
 {
 	switch (attr) {
+	case hwmon_in_enable:
+		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+		return 0;
+
 	case hwmon_in_input:
+		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
+			return -ENODATA;
+
 		*val = drvdata->fan_in[channel];
 		return 0;
 
@@ -163,7 +197,14 @@ static int hwmon_read_curr(struct drvdata *drvdata, u32 attr, int channel,
 			   long *val)
 {
 	switch (attr) {
+	case hwmon_curr_enable:
+		*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+		return 0;
+
 	case hwmon_curr_input:
+		if (drvdata->fan_type[channel] == FAN_TYPE_NONE)
+			return -ENODATA;
+
 		*val = drvdata->fan_current[channel];
 		return 0;
 
@@ -238,11 +279,19 @@ static const struct hwmon_ops hwmon_ops = {
 };
 
 static const struct hwmon_channel_info *channel_info[] = {
-	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
-	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_INPUT, HWMON_PWM_INPUT,
-			   HWMON_PWM_INPUT),
-	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
-	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT),
+	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_ENABLE,
+			   HWMON_F_INPUT | HWMON_F_ENABLE,
+			   HWMON_F_INPUT | HWMON_F_ENABLE),
+	HWMON_CHANNEL_INFO(pwm,
+			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
+			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE),
+	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT | HWMON_I_ENABLE,
+			   HWMON_I_INPUT | HWMON_I_ENABLE,
+			   HWMON_I_INPUT | HWMON_I_ENABLE),
+	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT | HWMON_C_ENABLE,
+			   HWMON_C_INPUT | HWMON_C_ENABLE,
+			   HWMON_C_INPUT | HWMON_C_ENABLE),
 	NULL
 };
 
