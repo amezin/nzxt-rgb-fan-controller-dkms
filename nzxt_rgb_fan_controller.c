@@ -44,14 +44,12 @@ struct fan_status_report {
 			uint8_t duty_percent_dup[FAN_CHANNELS_MAX];
 			/* "Case Noise" in db */
 			uint8_t noise_db;
-			uint8_t zero_padding4[7];
 		} __attribute__((__packed__)) fan_speed;
 		struct {
 			/* Voltage, in millivolts. Non-zero even when fan is not connected */
 			__le16 fan_in[FAN_CHANNELS_MAX];
 			/* Current, in milliamperes. Near-zero when disconnected */
 			__le16 fan_current[FAN_CHANNELS_MAX];
-			uint8_t zero_padding2[8];
 		} __attribute__((__packed__)) fan_voltage;
 	} __attribute__((__packed__));
 } __attribute__((__packed__));
@@ -99,8 +97,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	struct fan_status_report *report = data;
 	int i;
 
-	if (size != sizeof(struct fan_status_report)) {
-		pr_warn("Status report size is wrong: %d (should be %zu)\n",
+	if (size < sizeof(struct fan_status_report)) {
+		pr_warn("Status report is too small: %d bytes (should be >= %zu)\n",
 			size, sizeof(struct fan_status_report));
 		return;
 	}
