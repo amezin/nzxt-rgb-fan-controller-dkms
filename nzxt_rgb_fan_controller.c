@@ -11,8 +11,8 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-static bool enable_disconnected = 0;
-module_param(enable_disconnected, bool, S_IRUGO | S_IWUSR);
+static bool enable_disconnected;
+module_param(enable_disconnected, bool, 0644);
 MODULE_PARM_DESC(enable_disconnected,
 		 "Enable sensors for channels without fans connected.");
 
@@ -45,7 +45,8 @@ struct fan_status_report {
 	uint8_t type;
 	/* Some configuration data? Stays the same after fan speed changes,
 	 * changes in fan configuration, reboots and driver reloads.
-	 * Byte 12 seems to be the number of fan channels, but I am not sure. */
+	 * Byte 12 seems to be the number of fan channels, but I am not sure.
+	 */
 	uint8_t unknown1[14];
 	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
 	uint8_t fan_type[FAN_CHANNELS_MAX];
@@ -61,16 +62,16 @@ struct fan_status_report {
 			uint8_t duty_percent_dup[FAN_CHANNELS_MAX];
 			/* "Case Noise" in db */
 			uint8_t noise_db;
-		} __attribute__((__packed__)) fan_speed;
+		} __packed fan_speed;
 		/* When type == FAN_STATUS_REPORT_VOLTAGE */
 		struct {
 			/* Voltage, in millivolts. Non-zero even when fan is not connected */
 			__le16 fan_in[FAN_CHANNELS_MAX];
 			/* Current, in milliamperes. Near-zero when disconnected */
 			__le16 fan_current[FAN_CHANNELS_MAX];
-		} __attribute__((__packed__)) fan_voltage;
-	} __attribute__((__packed__));
-} __attribute__((__packed__));
+		} __packed fan_voltage;
+	} __packed;
+} __packed;
 
 enum {
 	OUTPUT_REPORT_ID_INIT_COMMAND = 0x60,
@@ -87,7 +88,7 @@ struct set_fan_speed_report {
 	/* Fan duty cycle/target speed in percent */
 	uint8_t duty_percent[FAN_CHANNELS_MAX];
 	uint8_t zero_padding[50];
-} __attribute__((__packed__));
+} __packed;
 
 static const uint8_t INIT_DATA[][64] = {
 	{ OUTPUT_REPORT_ID_INIT_COMMAND, 0x03 },
@@ -125,6 +126,7 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	case FAN_STATUS_REPORT_SPEED:
 		for (i = 0; i < FAN_CHANNELS; i++) {
 			struct fan_channel_status *fan = &drvdata->fan[i];
+
 			fan->type = report->fan_type[i];
 			fan->rpm = get_unaligned_le16(
 				&report->fan_speed.fan_rpm[i]);
@@ -134,6 +136,7 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	case FAN_STATUS_REPORT_VOLTAGE:
 		for (i = 0; i < FAN_CHANNELS; i++) {
 			struct fan_channel_status *fan = &drvdata->fan[i];
+
 			fan->type = report->fan_type[i];
 			fan->in = get_unaligned_le16(
 				&report->fan_voltage.fan_in[i]);
@@ -152,9 +155,9 @@ static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 				u32 attr, int channel)
 {
 	if (type == hwmon_pwm && attr == hwmon_pwm_input)
-		return S_IRUGO | S_IWUSR;
+		return 0644;
 
-	return S_IRUGO;
+	return 0444;
 }
 
 static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
@@ -381,6 +384,7 @@ out_hw_stop:
 static void hid_remove(struct hid_device *hdev)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
+
 	hwmon_device_unregister(drvdata->hwmon);
 
 	hid_hw_close(hdev);
