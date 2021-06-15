@@ -391,9 +391,10 @@ static void hid_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static const struct hid_device_id hid_id_table[] = { { HID_USB_DEVICE(0x1e71,
-								      0x2009) },
-						     {} };
+static const struct hid_device_id hid_id_table[] = {
+	{ HID_USB_DEVICE(0x1e71, 0x2009) },
+	{},
+};
 
 static struct hid_driver hid_driver = {
 	.name = "nzxt_rgb_fan_controller",
