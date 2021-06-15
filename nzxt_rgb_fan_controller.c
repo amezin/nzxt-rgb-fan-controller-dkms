@@ -37,6 +37,7 @@ struct fan_status_report {
 	uint8_t fan_type[FAN_CHANNELS_MAX];
 
 	union {
+		/* When type == FAN_STATUS_REPORT_SPEED */
 		struct {
 			/* Fan speed, in RPM. Zero for channels without fans connected. */
 			__le16 fan_rpm[FAN_CHANNELS_MAX];
@@ -47,6 +48,7 @@ struct fan_status_report {
 			/* "Case Noise" in db */
 			uint8_t noise_db;
 		} __attribute__((__packed__)) fan_speed;
+		/* When type == FAN_STATUS_REPORT_VOLTAGE */
 		struct {
 			/* Voltage, in millivolts. Non-zero even when fan is not connected */
 			__le16 fan_in[FAN_CHANNELS_MAX];
