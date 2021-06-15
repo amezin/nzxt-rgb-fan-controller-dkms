@@ -23,11 +23,20 @@ MODULE_PARM_DESC(enable_disconnected,
 #define FAN_CHANNELS 3
 #define FAN_CHANNELS_MAX 8
 
-enum { INPUT_REPORT_ID_FAN_STATUS = 0x67 };
+enum {
+	INPUT_REPORT_ID_FAN_STATUS = 0x67,
+};
 
-enum { FAN_STATUS_REPORT_SPEED = 0x02, FAN_STATUS_REPORT_VOLTAGE = 0x04 };
+enum {
+	FAN_STATUS_REPORT_SPEED = 0x02,
+	FAN_STATUS_REPORT_VOLTAGE = 0x04,
+};
 
-enum { FAN_TYPE_NONE = 0, FAN_TYPE_DC = 1, FAN_TYPE_PWM = 2 };
+enum {
+	FAN_TYPE_NONE = 0,
+	FAN_TYPE_DC = 1,
+	FAN_TYPE_PWM = 2,
+};
 
 struct fan_status_report {
 	/* report_id should be INPUT_REPORT_ID_STATUS = 0x67 */
