@@ -14,7 +14,7 @@
 static bool enable_disconnected;
 module_param(enable_disconnected, bool, 0644);
 MODULE_PARM_DESC(enable_disconnected,
-		 "Enable sensors for channels without fans connected.");
+		 "Enable sensors for channels with no fan detected.");
 
 /*
  * The device has only 3 fan channels/connectors. But all HID reports have
