@@ -73,6 +73,8 @@ struct fan_status_report {
 	} __packed;
 } __packed;
 
+#define OUTPUT_REPORT_SIZE 64
+
 enum {
 	OUTPUT_REPORT_ID_INIT_COMMAND = 0x60,
 	OUTPUT_REPORT_ID_SET_FAN_SPEED = 0x62,
@@ -87,14 +89,7 @@ struct set_fan_speed_report {
 	uint8_t channel_bit_mask;
 	/* Fan duty cycle/target speed in percent */
 	uint8_t duty_percent[FAN_CHANNELS_MAX];
-	uint8_t zero_padding[50];
 } __packed;
-
-static const uint8_t INIT_DATA[][64] = {
-	{ OUTPUT_REPORT_ID_INIT_COMMAND, 0x03 },
-	{ OUTPUT_REPORT_ID_INIT_COMMAND, 0x02, 0x01, 0xe8, 0x03, 0x01, 0xe8,
-	  0x03 }
-};
 
 struct fan_channel_status {
 	uint8_t type;
@@ -108,6 +103,7 @@ struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
 	struct fan_channel_status fan[FAN_CHANNELS];
+	long update_interval;
 };
 
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
@@ -157,6 +153,9 @@ static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 	if (type == hwmon_pwm && attr == hwmon_pwm_input)
 		return 0644;
 
+	if (type == hwmon_chip && attr == hwmon_chip_update_interval)
+		return 0644;
+
 	return 0444;
 }
 
@@ -164,7 +163,23 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		      u32 attr, int channel, long *val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
-	struct fan_channel_status *fan = &drvdata->fan[channel];
+	struct fan_channel_status *fan;
+
+	if (type == hwmon_chip) {
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			*val = drvdata->update_interval;
+			return 0;
+
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (channel < 0 || channel >= FAN_CHANNELS)
+		return -EINVAL;
+
+	fan = &drvdata->fan[channel];
 
 	switch (type) {
 	case hwmon_fan:
@@ -244,31 +259,106 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
+static int send_output_report(struct hid_device *hdev, const void *data,
+			      size_t data_size)
+{
+	void *buffer;
+	int ret;
+
+	if (data_size > OUTPUT_REPORT_SIZE)
+		return -EINVAL;
+
+	buffer = kzalloc(OUTPUT_REPORT_SIZE, GFP_KERNEL);
+
+	if (!buffer)
+		return -ENOMEM;
+
+	memcpy(buffer, data, data_size);
+	ret = hid_hw_output_report(hdev, buffer, OUTPUT_REPORT_SIZE);
+	kfree(buffer);
+	return ret < 0 ? ret : 0;
+}
+
+static int set_pwm(struct hid_device *hdev, int channel, long val)
+{
+	struct set_fan_speed_report report = {
+		.report_id = OUTPUT_REPORT_ID_SET_FAN_SPEED,
+		.magic = 1,
+		.channel_bit_mask = 1 << channel
+	};
+
+	report.duty_percent[channel] = val * 100 / 255;
+	return send_output_report(hdev, &report, sizeof(report));
+}
+
+static int set_update_interval(struct hid_device *hdev, long val)
+{
+	uint8_t val_transformed = (max(val, 250L) - 250) / 250;
+	uint8_t report[] = {
+		OUTPUT_REPORT_ID_INIT_COMMAND,
+		0x02,
+		0x01,
+		0xe8,
+		val_transformed,
+		0x01,
+		0xe8,
+		val_transformed,
+	};
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+	int ret;
+
+	ret = send_output_report(hdev, report, sizeof(report));
+	if (ret)
+		return ret;
+
+	drvdata->update_interval = val_transformed * 250 + 250;
+	return 0;
+}
+
+static int init_device(struct hid_device *hdev)
+{
+	uint8_t report[] = { OUTPUT_REPORT_ID_INIT_COMMAND, 0x03 };
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+	int ret;
+
+	ret = send_output_report(hdev, report, sizeof(report));
+	if (ret)
+		return ret;
+
+	return set_update_interval(hdev, drvdata->update_interval);
+}
+
 static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
-	struct set_fan_speed_report *report;
-	int ret;
+	struct hid_device *hdev = drvdata->hid;
 
-	if (type != hwmon_pwm || attr != hwmon_pwm_input)
+	switch (type) {
+	case hwmon_pwm:
+		if (channel < 0 || channel >= FAN_CHANNELS)
+			return -EINVAL;
+
+		switch (attr) {
+		case hwmon_pwm_input:
+			return set_pwm(hdev, channel, val);
+
+		default:
+			return -EINVAL;
+		}
+
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			return set_update_interval(hdev, val);
+
+		default:
+			return -EINVAL;
+		}
+
+	default:
 		return -EINVAL;
-
-	report = kzalloc(sizeof(struct set_fan_speed_report), GFP_KERNEL);
-	if (!report)
-		return -ENOMEM;
-
-	report->report_id = OUTPUT_REPORT_ID_SET_FAN_SPEED;
-	report->magic = 1;
-	report->channel_bit_mask = 1 << channel;
-	report->duty_percent[channel] = val * 100 / 255;
-
-	ret = hid_hw_output_report(drvdata->hid, (void *)report,
-				   sizeof(*report));
-
-	kfree(report);
-
-	return ret;
+	}
 }
 
 static const struct hwmon_ops hwmon_ops = {
@@ -291,6 +381,7 @@ static const struct hwmon_channel_info *channel_info[] = {
 	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT | HWMON_C_ENABLE,
 			   HWMON_C_INPUT | HWMON_C_ENABLE,
 			   HWMON_C_INPUT | HWMON_C_ENABLE),
+	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	NULL
 };
 
@@ -298,27 +389,6 @@ static const struct hwmon_chip_info chip_info = {
 	.ops = &hwmon_ops,
 	.info = channel_info,
 };
-
-static int hid_reset_resume(struct hid_device *hdev)
-{
-	uint8_t *data = kmalloc(sizeof(INIT_DATA[0]), GFP_KERNEL);
-	int i, ret;
-
-	if (!data)
-		return -ENOMEM;
-
-	for (i = 0; i < ARRAY_SIZE(INIT_DATA); i++) {
-		memcpy(data, INIT_DATA[i], sizeof(INIT_DATA[i]));
-		ret = hid_hw_output_report(hdev, data, sizeof(INIT_DATA[i]));
-
-		if (ret < 0)
-			break;
-	}
-
-	kfree(data);
-
-	return (ret < 0) ? ret : 0;
-}
 
 static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
 			 u8 *data, int size)
@@ -358,7 +428,9 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_device_io_start(hdev);
 
-	ret = hid_reset_resume(hdev);
+	drvdata->update_interval = 1000;
+
+	ret = init_device(hdev);
 	if (ret)
 		goto out_hw_close;
 
@@ -403,7 +475,7 @@ static struct hid_driver hid_driver = {
 	.remove = hid_remove,
 	.raw_event = hid_raw_event,
 #ifdef CONFIG_PM
-	.reset_resume = hid_reset_resume,
+	.reset_resume = init_device,
 #endif
 };
 
