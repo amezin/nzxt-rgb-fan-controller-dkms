@@ -48,9 +48,11 @@ compile_commands.json: $(OBJ_FILE)
 .clang-format .gitattributes:
 	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
 
-.gitignore: custom.gitignore
-	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
-	cat $< >> $@
+upstream.gitignore:
+	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/.gitignore
+
+.gitignore: upstream.gitignore custom.gitignore
+	cat $^ >$@
 
 checkpatch:
 	$(KDIR)/scripts/checkpatch.pl --no-tree -f $(SRC_FILE)
