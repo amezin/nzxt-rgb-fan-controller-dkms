@@ -2,6 +2,8 @@ include Kbuild
 
 ifeq ($(KERNELRELEASE),)
 
+SHELL := /bin/bash
+
 KDIR := /lib/modules/$(shell uname -r)/build
 DKMS_PACKAGE := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_NAME})
 DKMS_VERSION := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_VERSION})
