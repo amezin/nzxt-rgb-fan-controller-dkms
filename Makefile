@@ -2,11 +2,7 @@ include Kbuild
 
 ifeq ($(KERNELRELEASE),)
 
-SHELL := /bin/bash
-
 KDIR := /lib/modules/$(shell uname -r)/build
-DKMS_PACKAGE := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_NAME})
-DKMS_VERSION := $(shell source $(CURDIR)/dkms.conf && echo $${PACKAGE_VERSION})
 
 all: modules compile_commands.json
 
@@ -40,25 +36,6 @@ reload:
 	/sbin/insmod $(MODNAME).ko
 
 .PHONY: reload
-
-dkms-add: dkms-%:
-	/usr/sbin/dkms $* $(CURDIR)
-
-dkms-build dkms-install dkms-uninstall: dkms-%:
-	/usr/sbin/dkms $* $(DKMS_PACKAGE)/$(DKMS_VERSION)
-
-dkms-remove: dkms-%:
-	/usr/sbin/dkms $* $(DKMS_PACKAGE)/$(DKMS_VERSION) --all
-
-.PHONY: dkms-add dkms-remove dkms-build dkms-install dkms-uninstall
-
-modprobe:
-	modprobe $(MODNAME)
-
-modprobe-remove:
-	modprobe -r $(MODNAME)
-
-.PHONY: modprobe modprobe-remove
 
 format: .clang-format
 	clang-format -i $(SRC_FILE)
