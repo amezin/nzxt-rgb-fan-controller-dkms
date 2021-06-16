@@ -35,7 +35,7 @@ reload:
 	-/sbin/rmmod $(MODNAME)
 	/sbin/insmod $(MODNAME).ko
 
-.PHONY: reload
+.PHONY: insmod rmmod reload
 
 format: .clang-format
 	clang-format -i $(SRC_FILE)
