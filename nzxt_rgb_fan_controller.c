@@ -80,6 +80,11 @@ enum {
 	OUTPUT_REPORT_ID_SET_FAN_SPEED = 0x62,
 };
 
+enum {
+	INIT_COMMAND_SET_UPDATE_INTERVAL = 0x02,
+	INIT_COMMAND_DETECT_FANS = 0x03,
+};
+
 struct set_fan_speed_report {
 	/* report_id should be OUTPUT_REPORT_ID_SET_FAN_SPEED = 0x62 */
 	uint8_t report_id;
@@ -296,7 +301,7 @@ static int set_update_interval(struct hid_device *hdev, long val)
 	uint8_t val_transformed = (max(val, 250L) - 250) / 250;
 	uint8_t report[] = {
 		OUTPUT_REPORT_ID_INIT_COMMAND,
-		0x02,
+		INIT_COMMAND_SET_UPDATE_INTERVAL,
 		0x01,
 		0xe8,
 		val_transformed,
@@ -304,6 +309,7 @@ static int set_update_interval(struct hid_device *hdev, long val)
 		0xe8,
 		val_transformed,
 	};
+
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 	int ret;
 
@@ -317,7 +323,11 @@ static int set_update_interval(struct hid_device *hdev, long val)
 
 static int init_device(struct hid_device *hdev)
 {
-	uint8_t report[] = { OUTPUT_REPORT_ID_INIT_COMMAND, 0x03 };
+	uint8_t report[] = {
+		OUTPUT_REPORT_ID_INIT_COMMAND,
+		INIT_COMMAND_DETECT_FANS,
+	};
+
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 	int ret;
 
