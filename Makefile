@@ -29,6 +29,12 @@ MODNAME := $(OBJ_FILE:.o=)
 
 $(OBJ_FILE) $(MODNAME).ko: $(SRC_FILE) Kbuild
 
+insmod:
+	/sbin/insmod $(MODNAME).ko
+
+rmmod:
+	/sbin/rmmod $(MODNAME)
+
 reload:
 	-/sbin/rmmod $(MODNAME)
 	/sbin/insmod $(MODNAME).ko
