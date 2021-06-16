@@ -35,14 +35,14 @@ reload:
 
 .PHONY: reload
 
-dkms-add:
-	/usr/sbin/dkms add $(CURDIR)
-
-dkms-remove:
-	/usr/sbin/dkms remove $(DKMS_PACKAGE)/$(DKMS_VERSION) --all
+dkms-add: dkms-%:
+	/usr/sbin/dkms $* $(CURDIR)
 
 dkms-build dkms-install dkms-uninstall: dkms-%:
-	/usr/sbin/dkms $* .
+	/usr/sbin/dkms $* $(DKMS_PACKAGE)/$(DKMS_VERSION)
+
+dkms-remove: dkms-%:
+	/usr/sbin/dkms $* $(DKMS_PACKAGE)/$(DKMS_VERSION) --all
 
 .PHONY: dkms-add dkms-remove dkms-build dkms-install dkms-uninstall
 
