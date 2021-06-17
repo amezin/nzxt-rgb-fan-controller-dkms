@@ -219,9 +219,6 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_pwm_input:
-			if (fan->type == FAN_TYPE_NONE)
-				return -ENODATA;
-
 			*val = fan->duty_percent * 255 / 100;
 			return 0;
 
