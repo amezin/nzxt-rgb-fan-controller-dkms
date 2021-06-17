@@ -291,7 +291,7 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 	return (val == expected_val) ? 0 : -ENOTSUPP;
 }
 
-static int set_update_interval(struct hid_device *hdev, long val)
+static int set_update_interval(struct drvdata *drvdata, long val)
 {
 	uint8_t val_transformed = (max(val, 250L) - 250) / 250;
 	uint8_t report[] = {
@@ -305,10 +305,9 @@ static int set_update_interval(struct hid_device *hdev, long val)
 		val_transformed,
 	};
 
-	struct drvdata *drvdata = hid_get_drvdata(hdev);
 	int ret;
 
-	ret = send_output_report(hdev, report, sizeof(report));
+	ret = send_output_report(drvdata->hid, report, sizeof(report));
 	if (ret)
 		return ret;
 
@@ -330,14 +329,13 @@ static int init_device(struct hid_device *hdev)
 	if (ret)
 		return ret;
 
-	return set_update_interval(hdev, drvdata->update_interval);
+	return set_update_interval(drvdata, drvdata->update_interval);
 }
 
 static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
-	struct hid_device *hdev = drvdata->hid;
 
 	switch (type) {
 	case hwmon_pwm:
@@ -349,7 +347,7 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			return set_pwm_enable(drvdata, channel, val);
 
 		case hwmon_pwm_input:
-			return set_pwm(hdev, channel, val);
+			return set_pwm(drvdata->hid, channel, val);
 
 		default:
 			return -EINVAL;
@@ -358,7 +356,7 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			return set_update_interval(hdev, val);
+			return set_update_interval(drvdata, val);
 
 		default:
 			return -EINVAL;
