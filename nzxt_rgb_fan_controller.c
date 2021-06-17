@@ -150,13 +150,29 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 				u32 attr, int channel)
 {
-	if (type == hwmon_pwm && attr == hwmon_pwm_input)
-		return 0644;
+	switch (type) {
+	case hwmon_pwm:
+		switch (attr) {
+		case hwmon_pwm_input:
+		case hwmon_pwm_enable:
+			return 0644;
 
-	if (type == hwmon_chip && attr == hwmon_chip_update_interval)
-		return 0644;
+		default:
+			return 0444;
+		}
 
-	return 0444;
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			return 0644;
+
+		default:
+			return 0444;
+		}
+
+	default:
+		return 0444;
+	}
 }
 
 static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
@@ -270,6 +286,14 @@ static int set_pwm(struct hid_device *hdev, int channel, long val)
 	return send_output_report(hdev, &report, sizeof(report));
 }
 
+static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
+{
+	struct fan_channel_status *fan = &drvdata->fan[channel];
+	long expected_val = fan->type != FAN_TYPE_NONE;
+
+	return (val == expected_val) ? 0 : -ENOTSUPP;
+}
+
 static int set_update_interval(struct hid_device *hdev, long val)
 {
 	uint8_t val_transformed = (max(val, 250L) - 250) / 250;
@@ -324,6 +348,9 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			return -EINVAL;
 
 		switch (attr) {
+		case hwmon_pwm_enable:
+			return set_pwm_enable(drvdata, channel, val);
+
 		case hwmon_pwm_input:
 			return set_pwm(hdev, channel, val);
 
