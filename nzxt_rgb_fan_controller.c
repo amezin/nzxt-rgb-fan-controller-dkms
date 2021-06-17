@@ -184,14 +184,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	switch (type) {
 	case hwmon_fan:
 		switch (attr) {
-		case hwmon_fan_enable:
-			*val = fan->type != FAN_TYPE_NONE;
-			return 0;
-
 		case hwmon_fan_input:
-			if (fan->type == FAN_TYPE_NONE)
-				return -ENODATA;
-
 			*val = fan->rpm;
 			return 0;
 
@@ -222,14 +215,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 
 	case hwmon_in:
 		switch (attr) {
-		case hwmon_in_enable:
-			*val = fan->type != FAN_TYPE_NONE;
-			return 0;
-
 		case hwmon_in_input:
-			if (fan->type == FAN_TYPE_NONE)
-				return -ENODATA;
-
 			*val = fan->in;
 			return 0;
 
@@ -239,14 +225,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 
 	case hwmon_curr:
 		switch (attr) {
-		case hwmon_curr_enable:
-			*val = fan->type != FAN_TYPE_NONE;
-			return 0;
-
 		case hwmon_curr_input:
-			if (fan->type == FAN_TYPE_NONE)
-				return -ENODATA;
-
 			*val = fan->curr;
 			return 0;
 
@@ -373,19 +352,13 @@ static const struct hwmon_ops hwmon_ops = {
 };
 
 static const struct hwmon_channel_info *channel_info[] = {
-	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_ENABLE,
-			   HWMON_F_INPUT | HWMON_F_ENABLE,
-			   HWMON_F_INPUT | HWMON_F_ENABLE),
+	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
 	HWMON_CHANNEL_INFO(pwm,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE),
-	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT | HWMON_I_ENABLE,
-			   HWMON_I_INPUT | HWMON_I_ENABLE,
-			   HWMON_I_INPUT | HWMON_I_ENABLE),
-	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT | HWMON_C_ENABLE,
-			   HWMON_C_INPUT | HWMON_C_ENABLE,
-			   HWMON_C_INPUT | HWMON_C_ENABLE),
+	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
+	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT),
 	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	NULL
 };
