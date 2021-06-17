@@ -11,11 +11,6 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
-static bool enable_disconnected;
-module_param(enable_disconnected, bool, 0644);
-MODULE_PARM_DESC(enable_disconnected,
-		 "Enable sensors for channels with no fan detected.");
-
 /*
  * The device has only 3 fan channels/connectors. But all HID reports have
  * space reserved for up to 8 channels.
@@ -194,7 +189,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_fan_input:
-			if (fan->type == FAN_TYPE_NONE && !enable_disconnected)
+			if (fan->type == FAN_TYPE_NONE)
 				return -ENODATA;
 
 			*val = fan->rpm;
@@ -215,7 +210,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_pwm_input:
-			if (fan->type == FAN_TYPE_NONE && !enable_disconnected)
+			if (fan->type == FAN_TYPE_NONE)
 				return -ENODATA;
 
 			*val = fan->duty_percent * 255 / 100;
@@ -232,7 +227,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_in_input:
-			if (fan->type == FAN_TYPE_NONE && !enable_disconnected)
+			if (fan->type == FAN_TYPE_NONE)
 				return -ENODATA;
 
 			*val = fan->in;
@@ -249,7 +244,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_curr_input:
-			if (fan->type == FAN_TYPE_NONE && !enable_disconnected)
+			if (fan->type == FAN_TYPE_NONE)
 				return -ENODATA;
 
 			*val = fan->curr;
