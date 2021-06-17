@@ -1,7 +1,7 @@
-pkgname=nzxt_grid-dkms
+pkgname=nzxt_rgb_fan_controller-dkms
 pkgver=0.1
 pkgrel=1
-pkgdesc='Kernel driver for NZXT Grid V3 fan controller'
+pkgdesc='HWMON driver for NZXT RGB & Fan Controller'
 url=
 arch=(any)
 license=(GPL)
@@ -9,7 +9,7 @@ depends=(dkms)
 source=(
   Makefile
   Kbuild
-  nzxt_grid.c
+  nzxt_rgb_fan_controller.c
   dkms.conf
 )
 md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
@@ -19,5 +19,5 @@ pkgver() {
 }
 
 package() {
-  install -Dm 644 Makefile Kbuild nzxt_grid.c dkms.conf -t "${pkgdir}"/usr/src/nzxt_grid-${pkgver}
+  install -Dm 644 Makefile Kbuild nzxt_rgb_fan_controller.c dkms.conf -t "${pkgdir}"/usr/src/nzxt_grid-${pkgver}
 }
