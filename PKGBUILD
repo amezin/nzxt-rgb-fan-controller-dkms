@@ -15,7 +15,7 @@ source=(
 md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
 
 pkgver() {
-  echo $(source dkms.conf && echo ${PACKAGE_VERSION})
+  echo $(source dkms.conf && echo ${PACKAGE_VERSION})+g$(git rev-parse --short HEAD)
 }
 
 package() {
