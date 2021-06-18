@@ -3,8 +3,6 @@
  *  Copyright (c) 2021 Aleksandr Mezin
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/completion.h>
 #include <linux/hid.h>
 #include <linux/hwmon.h>
@@ -130,11 +128,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	struct fan_status_report *report = data;
 	int i;
 
-	if (size < sizeof(struct fan_status_report)) {
-		pr_warn("Status report is too small: %d bytes (should be >= %zu)\n",
-			size, sizeof(struct fan_status_report));
+	if (size < sizeof(struct fan_status_report))
 		return;
-	}
 
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
@@ -163,8 +158,6 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 		}
 		return;
 	default:
-		pr_warn("Unexpected value of 'type' field: %d (report size %d)\n",
-			report->type, size);
 		return;
 	}
 }
