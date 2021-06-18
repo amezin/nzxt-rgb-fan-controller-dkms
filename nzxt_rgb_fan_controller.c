@@ -110,7 +110,7 @@ struct drvdata {
 	long update_interval;
 };
 
-static long scale_value(long val, long orig_max, long new_max)
+static long scale_pwm_value(long val, long orig_max, long new_max)
 {
 	if (val <= 0)
 		return 0;
@@ -120,10 +120,14 @@ static long scale_value(long val, long orig_max, long new_max)
 
 	val *= new_max;
 
-	if ((val % orig_max) * 2 >= orig_max)
+	if ((val % orig_max) * 2 >= orig_max) {
 		return val / orig_max + 1;
-	else
-		return val / orig_max;
+	} else {
+		/* Non-zero values should not become zero: 0 completely turns
+		 * off the fan
+		 */
+		return max(val / orig_max, 1L);
+	}
 }
 
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
@@ -238,7 +242,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_pwm_input:
-			*val = scale_value(fan->duty_percent, 100, 255);
+			*val = scale_pwm_value(fan->duty_percent, 100, 255);
 			return 0;
 
 		default:
@@ -293,7 +297,7 @@ static int send_output_report(struct hid_device *hdev, const void *data,
 static int set_pwm(struct drvdata *drvdata, int channel, long val)
 {
 	int ret;
-	uint8_t duty_percent = scale_value(val, 255, 100);
+	uint8_t duty_percent = scale_pwm_value(val, 255, 100);
 
 	struct set_fan_speed_report report = {
 		.report_id = OUTPUT_REPORT_ID_SET_FAN_SPEED,
