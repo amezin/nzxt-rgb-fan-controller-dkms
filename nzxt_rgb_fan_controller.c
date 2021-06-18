@@ -41,7 +41,8 @@ struct fan_status_report {
 	uint8_t report_id;
 	/* FAN_STATUS_REPORT_SPEED = 0x02 or FAN_STATUS_REPORT_VOLTAGE = 0x04 */
 	uint8_t type;
-	/* Some configuration data? Stays the same after fan speed changes,
+	/*
+	 * Some configuration data? Stays the same after fan speed changes,
 	 * changes in fan configuration, reboots and driver reloads.
 	 * Byte 12 seems to be the number of fan channels, but I am not sure.
 	 */
@@ -123,7 +124,8 @@ static long scale_pwm_value(long val, long orig_max, long new_max)
 	if ((val % orig_max) * 2 >= orig_max) {
 		return val / orig_max + 1;
 	} else {
-		/* Non-zero values should not become zero: 0 completely turns
+		/*
+		 * Non-zero values should not become zero: 0 completely turns
 		 * off the fan
 		 */
 		return max(val / orig_max, 1L);
@@ -309,7 +311,8 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	ret = send_output_report(drvdata->hid, &report, sizeof(report));
 
 	if (ret == 0) {
-		/* pwmconfig and fancontrol scripts expect pwm writes to take
+		/*
+		 * pwmconfig and fancontrol scripts expect pwm writes to take
 		 * effect immediately (i. e. read from pwm* sysfs should return
 		 * the value written into it). The device seems to always
 		 * accept pwm values - even when there is no fan connected - so
@@ -327,13 +330,13 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 {
-	/* Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
-	 * even if it already is 1.
-	 */
-
 	struct fan_channel_status *fan = &drvdata->fan[channel];
 	long expected_val = fan->type != FAN_TYPE_NONE;
 
+	/*
+	 * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
+	 * even if it already is 1.
+	 */
 	return (val == expected_val) ? 0 : -ENOTSUPP;
 }
 
