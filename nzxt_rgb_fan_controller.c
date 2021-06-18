@@ -5,6 +5,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/completion.h>
 #include <linux/hid.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
@@ -102,6 +103,7 @@ struct fan_channel_status {
 struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
+	struct completion status_received;
 	struct fan_channel_status fan[FAN_CHANNELS];
 	long update_interval;
 };
@@ -144,6 +146,10 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 				&report->fan_speed.fan_rpm[i]);
 			fan->duty_percent = report->fan_speed.duty_percent[i];
 		}
+
+		if (!completion_done(&drvdata->status_received))
+			complete_all(&drvdata->status_received);
+
 		return;
 	case FAN_STATUS_REPORT_VOLTAGE:
 		for (i = 0; i < FAN_CHANNELS; i++) {
@@ -350,21 +356,37 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 	return 0;
 }
 
-static int init_device(struct hid_device *hdev)
+static int detect_fans(struct hid_device *hdev)
 {
 	uint8_t report[] = {
 		OUTPUT_REPORT_ID_INIT_COMMAND,
 		INIT_COMMAND_DETECT_FANS,
 	};
 
-	struct drvdata *drvdata = hid_get_drvdata(hdev);
+	return send_output_report(hdev, report, sizeof(report));
+}
+
+static int init_device(struct drvdata *drvdata, long update_interval)
+{
 	int ret;
 
-	ret = send_output_report(hdev, report, sizeof(report));
+	ret = detect_fans(drvdata->hid);
 	if (ret)
 		return ret;
 
-	return set_update_interval(drvdata, drvdata->update_interval);
+	reinit_completion(&drvdata->status_received);
+
+	ret = set_update_interval(drvdata, 0);
+	if (ret)
+		return ret;
+
+	ret = wait_for_completion_timeout(&drvdata->status_received, 1000);
+	if (ret < 0)
+		return ret;
+	if (ret == 0)
+		return -ETIMEDOUT;
+
+	return set_update_interval(drvdata, update_interval);
 }
 
 static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
@@ -437,6 +459,13 @@ static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
+static int hid_reset_resume(struct hid_device *hdev)
+{
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+
+	return init_device(drvdata, drvdata->update_interval);
+}
+
 static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 {
 	struct drvdata *drvdata;
@@ -448,6 +477,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
+	init_completion(&drvdata->status_received);
 
 	ret = hid_parse(hdev);
 	if (ret)
@@ -463,11 +493,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_device_io_start(hdev);
 
-	drvdata->update_interval = 1000;
-
-	ret = init_device(hdev);
-	if (ret)
-		goto out_hw_close;
+	init_device(drvdata, 1000);
 
 	drvdata->hwmon =
 		hwmon_device_register_with_info(&hdev->dev,
@@ -510,7 +536,7 @@ static struct hid_driver hid_driver = {
 	.remove = hid_remove,
 	.raw_event = hid_raw_event,
 #ifdef CONFIG_PM
-	.reset_resume = init_device,
+	.reset_resume = hid_reset_resume,
 #endif
 };
 
