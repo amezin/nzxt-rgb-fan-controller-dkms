@@ -17,6 +17,10 @@
 #define FAN_CHANNELS 3
 #define FAN_CHANNELS_MAX 8
 
+#define UPDATE_INTERVAL_PRECISION_MS 250
+#define UPDATE_INTERVAL_DEFAULT_MS 1000
+#define INITIAL_REPORT_TIMEOUT_MS 1000
+
 enum {
 	INPUT_REPORT_ID_FAN_STATUS = 0x67,
 };
@@ -331,7 +335,8 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 
 static int set_update_interval(struct drvdata *drvdata, long val)
 {
-	uint8_t val_transformed = (max(val, 250L) - 250) / 250;
+	uint8_t val_transformed =
+		max(val / UPDATE_INTERVAL_PRECISION_MS, 1L) - 1;
 	uint8_t report[] = {
 		OUTPUT_REPORT_ID_INIT_COMMAND,
 		INIT_COMMAND_SET_UPDATE_INTERVAL,
@@ -349,7 +354,8 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 	if (ret)
 		return ret;
 
-	drvdata->update_interval = val_transformed * 250 + 250;
+	drvdata->update_interval =
+		(val_transformed + 1) * UPDATE_INTERVAL_PRECISION_MS;
 	return 0;
 }
 
@@ -377,7 +383,8 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&drvdata->status_received, 1000);
+	ret = wait_for_completion_timeout(&drvdata->status_received,
+					  INITIAL_REPORT_TIMEOUT_MS);
 	if (ret < 0)
 		return ret;
 	if (ret == 0)
@@ -490,7 +497,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	hid_device_io_start(hdev);
 
-	init_device(drvdata, 1000);
+	init_device(drvdata, UPDATE_INTERVAL_DEFAULT_MS);
 
 	drvdata->hwmon =
 		hwmon_device_register_with_info(&hdev->dev,
