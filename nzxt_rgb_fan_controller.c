@@ -383,11 +383,8 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	if (ret)
 		return ret;
 
-	ret = wait_for_completion_timeout(&drvdata->status_received,
-					  INITIAL_REPORT_TIMEOUT_MS);
-	if (ret < 0)
-		return ret;
-	if (ret == 0)
+	if (!wait_for_completion_timeout(&drvdata->status_received,
+					 INITIAL_REPORT_TIMEOUT_MS))
 		return -ETIMEDOUT;
 
 	return set_update_interval(drvdata, update_interval);
