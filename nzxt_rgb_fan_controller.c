@@ -106,6 +106,22 @@ struct drvdata {
 	long update_interval;
 };
 
+static long scale_value(long val, long orig_max, long new_max)
+{
+	if (val <= 0)
+		return 0;
+
+	if (val >= orig_max)
+		return new_max;
+
+	val *= new_max;
+
+	if ((val % orig_max) * 2 >= orig_max)
+		return val / orig_max + 1;
+	else
+		return val / orig_max;
+}
+
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 				     int size)
 {
@@ -219,7 +235,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		case hwmon_pwm_input:
-			*val = fan->duty_percent * 255 / 100;
+			*val = scale_value(fan->duty_percent, 100, 255);
 			return 0;
 
 		default:
@@ -271,16 +287,35 @@ static int send_output_report(struct hid_device *hdev, const void *data,
 	return ret < 0 ? ret : 0;
 }
 
-static int set_pwm(struct hid_device *hdev, int channel, long val)
+static int set_pwm(struct drvdata *drvdata, int channel, long val)
 {
+	int ret;
+	uint8_t duty_percent = scale_value(val, 255, 100);
+
 	struct set_fan_speed_report report = {
 		.report_id = OUTPUT_REPORT_ID_SET_FAN_SPEED,
 		.magic = 1,
 		.channel_bit_mask = 1 << channel
 	};
 
-	report.duty_percent[channel] = val * 100 / 255;
-	return send_output_report(hdev, &report, sizeof(report));
+	report.duty_percent[channel] = duty_percent;
+	ret = send_output_report(drvdata->hid, &report, sizeof(report));
+
+	if (ret == 0) {
+		/* pwmconfig and fancontrol scripts expect pwm writes to take
+		 * effect immediately (i. e. read from pwm* sysfs should return
+		 * the value written into it). The device seems to always
+		 * accept pwm values - even when there is no fan connected - so
+		 * update pwm status without waiting for a report, to make
+		 * pwmconfig and fancontrol happy.
+		 *
+		 * This avoids "fan stuck" messages from pwmconfig, and
+		 * fancontrol setting fan speed to 100% during shutdown.
+		 */
+		drvdata->fan[channel].duty_percent = duty_percent;
+	}
+
+	return ret;
 }
 
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
@@ -347,7 +382,7 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			return set_pwm_enable(drvdata, channel, val);
 
 		case hwmon_pwm_input:
-			return set_pwm(drvdata->hid, channel, val);
+			return set_pwm(drvdata, channel, val);
 
 		default:
 			return -EINVAL;
