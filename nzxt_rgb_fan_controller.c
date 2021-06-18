@@ -326,6 +326,10 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 {
+	/* Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
+	 * even if it already is 1.
+	 */
+
 	struct fan_channel_status *fan = &drvdata->fan[channel];
 	long expected_val = fan->type != FAN_TYPE_NONE;
 
