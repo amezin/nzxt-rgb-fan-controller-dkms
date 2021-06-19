@@ -22,6 +22,7 @@
 #define UPDATE_INTERVAL_DEFAULT_MS 1000
 
 enum {
+	INPUT_REPORT_ID_FAN_CONFIG = 0x61,
 	INPUT_REPORT_ID_FAN_STATUS = 0x67,
 };
 
@@ -36,17 +37,34 @@ enum {
 	FAN_TYPE_PWM = 2,
 };
 
+struct unknown_static_data {
+	/*
+	 * Some configuration data? Stays the same after fan speed changes,
+	 * changes in fan configuration, reboots and driver reloads.
+	 *
+	 * The same data in multiple report types.
+	 *
+	 * Byte 12 seems to be the number of fan channels, but I am not sure.
+	 */
+	uint8_t unknown1[14];
+} __packed;
+
+struct fan_config_report {
+	/* report_id should be INPUT_REPORT_ID_FAN_CONFIG = 0x61 */
+	uint8_t report_id;
+	/* Always 0x03 */
+	uint8_t magic;
+	struct unknown_static_data unknown_data;
+	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
+	uint8_t fan_type[FAN_CHANNELS_MAX];
+} __packed;
+
 struct fan_status_report {
 	/* report_id should be INPUT_REPORT_ID_STATUS = 0x67 */
 	uint8_t report_id;
 	/* FAN_STATUS_REPORT_SPEED = 0x02 or FAN_STATUS_REPORT_VOLTAGE = 0x04 */
 	uint8_t type;
-	/*
-	 * Some configuration data? Stays the same after fan speed changes,
-	 * changes in fan configuration, reboots and driver reloads.
-	 * Byte 12 seems to be the number of fan channels, but I am not sure.
-	 */
-	uint8_t unknown1[14];
+	struct unknown_static_data unknown_data;
 	/* Fan type as detected by the device. See FAN_TYPE_* enum. */
 	uint8_t fan_type[FAN_CHANNELS_MAX];
 
@@ -134,6 +152,56 @@ static long scale_pwm_value(long val, long orig_max, long new_max)
 	return max(val / orig_max, 1L);
 }
 
+static void handle_fan_config_report(struct drvdata *drvdata, void *data,
+				     int size)
+{
+	struct fan_config_report *report = data;
+	int i;
+
+	if (size < sizeof(struct fan_config_report))
+		return;
+
+	if (report->magic != 0x03)
+		return;
+
+	for (i = 0; i < FAN_CHANNELS; i++) {
+		struct fan_channel_status *fan = &drvdata->fan[i];
+
+		fan->type = report->fan_type[i];
+	}
+
+	spin_lock(&drvdata->completions_lock);
+
+	/*
+	 * Looking at the implementation, calling complete_all()
+	 * unconditionally should be fine. But the docs say "Calling
+	 * complete_all() multiple times is a bug"
+	 */
+	if (!completion_done(&drvdata->fan_config_received))
+		complete_all(&drvdata->fan_config_received);
+
+	spin_unlock(&drvdata->completions_lock);
+}
+
+static void notify_fan_data_ready(struct drvdata *drvdata,
+				  struct completion *completion)
+{
+	spin_lock(&drvdata->completions_lock);
+
+	/*
+	 * The device sends INPUT_REPORT_ID_FAN_CONFIG = 0x61 report in response
+	 * to "detect fans" command. Only signal completion for other data after
+	 * getting 0x61, to make sure that fan detection is complete and the
+	 * data is not stale.
+	 */
+	if (completion_done(&drvdata->fan_config_received)) {
+		if (!completion_done(completion))
+			complete_all(completion);
+	}
+
+	spin_unlock(&drvdata->completions_lock);
+}
+
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 				     int size)
 {
@@ -142,8 +210,6 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 
 	if (size < sizeof(struct fan_status_report))
 		return;
-
-	spin_lock(&drvdata->completions_lock);
 
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
@@ -156,17 +222,7 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 			fan->duty_percent = report->fan_speed.duty_percent[i];
 		}
 
-		/*
-		 * Looking at the implementation, calling complete_all()
-		 * unconditionally should be fine. But the docs say "Calling
-		 * complete_all() multiple times is a bug"
-		 */
-		if (!completion_done(&drvdata->pwm_status_received))
-			complete_all(&drvdata->pwm_status_received);
-
-		if (!completion_done(&drvdata->fan_config_received))
-			complete_all(&drvdata->fan_config_received);
-
+		notify_fan_data_ready(drvdata, &drvdata->pwm_status_received);
 		break;
 
 	case FAN_STATUS_REPORT_VOLTAGE:
@@ -180,16 +236,10 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 				&report->fan_voltage.fan_current[i]);
 		}
 
-		if (!completion_done(&drvdata->voltage_status_received))
-			complete_all(&drvdata->voltage_status_received);
-
-		if (!completion_done(&drvdata->fan_config_received))
-			complete_all(&drvdata->fan_config_received);
-
+		notify_fan_data_ready(drvdata,
+				      &drvdata->voltage_status_received);
 		break;
 	}
-
-	spin_unlock(&drvdata->completions_lock);
 }
 
 static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -518,8 +568,15 @@ static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 	uint8_t report_id = *data;
 
-	if (report_id == INPUT_REPORT_ID_FAN_STATUS)
+	switch (report_id) {
+	case INPUT_REPORT_ID_FAN_CONFIG:
+		handle_fan_config_report(drvdata, data, size);
+		break;
+
+	case INPUT_REPORT_ID_FAN_STATUS:
 		handle_fan_status_report(drvdata, data, size);
+		break;
+	}
 
 	return 0;
 }
