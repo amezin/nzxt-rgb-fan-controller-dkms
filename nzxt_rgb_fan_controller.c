@@ -113,22 +113,22 @@ struct set_fan_speed_report {
 	uint8_t duty_percent[FAN_CHANNELS_MAX];
 } __packed;
 
-struct fan_channel_status {
-	uint8_t type;
-	uint8_t duty_percent;
-	uint16_t rpm;
-	uint16_t in;
-	uint16_t curr;
-};
-
 struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
+
+	uint8_t fan_duty_percent[FAN_CHANNELS];
+	uint16_t fan_rpm[FAN_CHANNELS];
 	struct completion pwm_status_received;
+
+	uint16_t fan_in[FAN_CHANNELS];
+	uint16_t fan_curr[FAN_CHANNELS];
 	struct completion voltage_status_received;
+
+	uint8_t fan_type[FAN_CHANNELS];
 	struct completion fan_config_received;
+
 	spinlock_t completions_lock;
-	struct fan_channel_status fan[FAN_CHANNELS];
 	long update_interval;
 };
 
@@ -164,11 +164,8 @@ static void handle_fan_config_report(struct drvdata *drvdata, void *data,
 	if (report->magic != 0x03)
 		return;
 
-	for (i = 0; i < FAN_CHANNELS; i++) {
-		struct fan_channel_status *fan = &drvdata->fan[i];
-
-		fan->type = report->fan_type[i];
-	}
+	for (i = 0; i < FAN_CHANNELS; i++)
+		drvdata->fan_type[i] = report->fan_type[i];
 
 	spin_lock(&drvdata->completions_lock);
 
@@ -214,12 +211,11 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
 		for (i = 0; i < FAN_CHANNELS; i++) {
-			struct fan_channel_status *fan = &drvdata->fan[i];
-
-			fan->type = report->fan_type[i];
-			fan->rpm = get_unaligned_le16(
+			drvdata->fan_type[i] = report->fan_type[i];
+			drvdata->fan_rpm[i] = get_unaligned_le16(
 				&report->fan_speed.fan_rpm[i]);
-			fan->duty_percent = report->fan_speed.duty_percent[i];
+			drvdata->fan_duty_percent[i] =
+				report->fan_speed.duty_percent[i];
 		}
 
 		notify_fan_data_ready(drvdata, &drvdata->pwm_status_received);
@@ -227,12 +223,10 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 
 	case FAN_STATUS_REPORT_VOLTAGE:
 		for (i = 0; i < FAN_CHANNELS; i++) {
-			struct fan_channel_status *fan = &drvdata->fan[i];
-
-			fan->type = report->fan_type[i];
-			fan->in = get_unaligned_le16(
+			drvdata->fan_type[i] = report->fan_type[i];
+			drvdata->fan_in[i] = get_unaligned_le16(
 				&report->fan_voltage.fan_in[i]);
-			fan->curr = get_unaligned_le16(
+			drvdata->fan_curr[i] = get_unaligned_le16(
 				&report->fan_voltage.fan_current[i]);
 		}
 
@@ -274,7 +268,6 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		      u32 attr, int channel, long *val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
-	struct fan_channel_status *fan;
 	int res;
 
 	if (type == hwmon_chip) {
@@ -291,8 +284,6 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	if (channel < 0 || channel >= FAN_CHANNELS)
 		return -EINVAL;
 
-	fan = &drvdata->fan[channel];
-
 	switch (type) {
 	case hwmon_fan:
 		switch (attr) {
@@ -302,7 +293,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
-			*val = fan->rpm;
+			*val = drvdata->fan_rpm[channel];
 			return 0;
 
 		default:
@@ -323,7 +314,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
-			*val = fan->type != FAN_TYPE_NONE;
+			*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
 			return 0;
 
 		case hwmon_pwm_mode:
@@ -332,7 +323,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
-			*val = fan->type == FAN_TYPE_PWM;
+			*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
 			return 0;
 
 		case hwmon_pwm_input:
@@ -341,7 +332,8 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
-			*val = scale_pwm_value(fan->duty_percent, 100, 255);
+			*val = scale_pwm_value(
+				drvdata->fan_duty_percent[channel], 100, 255);
 			return 0;
 
 		default:
@@ -356,7 +348,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
-			*val = fan->in;
+			*val = drvdata->fan_in[channel];
 			return 0;
 
 		default:
@@ -371,7 +363,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
-			*val = fan->curr;
+			*val = drvdata->fan_curr[channel];
 			return 0;
 
 		default:
@@ -429,7 +421,7 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 		 * This avoids "fan stuck" messages from pwmconfig, and
 		 * fancontrol setting fan speed to 100% during shutdown.
 		 */
-		drvdata->fan[channel].duty_percent = duty_percent;
+		drvdata->fan_duty_percent[channel] = duty_percent;
 	}
 
 	return ret;
@@ -437,7 +429,7 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 {
-	struct fan_channel_status *fan = &drvdata->fan[channel];
+	long expected_val;
 	int res;
 
 	res = wait_for_completion_interruptible(&drvdata->fan_config_received);
@@ -448,7 +440,8 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 	 * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
 	 * even if it already is 1.
 	 */
-	return (val == (fan->type != FAN_TYPE_NONE)) ? 0 : -ENOTSUPP;
+	expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+	return (val == expected_val) ? 0 : -ENOTSUPP;
 }
 
 static int set_update_interval(struct drvdata *drvdata, long val)
