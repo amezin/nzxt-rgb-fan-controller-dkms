@@ -19,7 +19,6 @@
 
 #define UPDATE_INTERVAL_PRECISION_MS 250
 #define UPDATE_INTERVAL_DEFAULT_MS 1000
-#define INITIAL_REPORT_TIMEOUT_MS 1000
 
 enum {
 	INPUT_REPORT_ID_FAN_STATUS = 0x67,
@@ -106,7 +105,7 @@ struct fan_channel_status {
 struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
-	struct completion status_received;
+	struct completion pwm_status_received;
 	struct fan_channel_status fan[FAN_CHANNELS];
 	long update_interval;
 };
@@ -152,8 +151,13 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 			fan->duty_percent = report->fan_speed.duty_percent[i];
 		}
 
-		if (!completion_done(&drvdata->status_received))
-			complete_all(&drvdata->status_received);
+		/*
+		 * Looking at the implementation, calling complete_all()
+		 * unconditionally should be fine. But the docs say "Calling
+		 * complete_all() multiple times is a bug"
+		 */
+		if (!completion_done(&drvdata->pwm_status_received))
+			complete_all(&drvdata->pwm_status_received);
 
 		return;
 	case FAN_STATUS_REPORT_VOLTAGE:
@@ -205,6 +209,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
 	struct fan_channel_status *fan;
+	int res;
 
 	if (type == hwmon_chip) {
 		switch (attr) {
@@ -234,6 +239,17 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		}
 
 	case hwmon_pwm:
+		/*
+		 * fancontrol:
+		 * 1) remembers pwm* values when it starts
+		 * 2) needs pwm*_enable to be 1 on controlled fans
+		 * So make sure we have correct data before allowing pwm* reads.
+		 */
+		res = wait_for_completion_interruptible(
+			&drvdata->pwm_status_received);
+		if (res)
+			return res;
+
 		switch (attr) {
 		case hwmon_pwm_enable:
 			*val = fan->type != FAN_TYPE_NONE;
@@ -384,15 +400,7 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	if (ret)
 		return ret;
 
-	reinit_completion(&drvdata->status_received);
-
-	ret = set_update_interval(drvdata, 0);
-	if (ret)
-		return ret;
-
-	if (!wait_for_completion_timeout(&drvdata->status_received,
-					 INITIAL_REPORT_TIMEOUT_MS))
-		return -ETIMEDOUT;
+	reinit_completion(&drvdata->pwm_status_received);
 
 	return set_update_interval(drvdata, update_interval);
 }
@@ -485,7 +493,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
-	init_completion(&drvdata->status_received);
+	init_completion(&drvdata->pwm_status_received);
 
 	ret = hid_parse(hdev);
 	if (ret)
