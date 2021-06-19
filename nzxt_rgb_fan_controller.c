@@ -7,6 +7,7 @@
 #include <linux/hid.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -106,6 +107,9 @@ struct drvdata {
 	struct hid_device *hid;
 	struct device *hwmon;
 	struct completion pwm_status_received;
+	struct completion voltage_status_received;
+	struct completion fan_config_received;
+	spinlock_t completions_lock;
 	struct fan_channel_status fan[FAN_CHANNELS];
 	long update_interval;
 };
@@ -139,6 +143,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	if (size < sizeof(struct fan_status_report))
 		return;
 
+	spin_lock(&drvdata->completions_lock);
+
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
 		for (i = 0; i < FAN_CHANNELS; i++) {
@@ -158,7 +164,11 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 		if (!completion_done(&drvdata->pwm_status_received))
 			complete_all(&drvdata->pwm_status_received);
 
-		return;
+		if (!completion_done(&drvdata->fan_config_received))
+			complete_all(&drvdata->fan_config_received);
+
+		break;
+
 	case FAN_STATUS_REPORT_VOLTAGE:
 		for (i = 0; i < FAN_CHANNELS; i++) {
 			struct fan_channel_status *fan = &drvdata->fan[i];
@@ -169,10 +179,17 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 			fan->curr = get_unaligned_le16(
 				&report->fan_voltage.fan_current[i]);
 		}
-		return;
-	default:
-		return;
+
+		if (!completion_done(&drvdata->voltage_status_received))
+			complete_all(&drvdata->voltage_status_received);
+
+		if (!completion_done(&drvdata->fan_config_received))
+			complete_all(&drvdata->fan_config_received);
+
+		break;
 	}
+
+	spin_unlock(&drvdata->completions_lock);
 }
 
 static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -230,6 +247,11 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
+			res = wait_for_completion_interruptible(
+				&drvdata->pwm_status_received);
+			if (res)
+				return res;
+
 			*val = fan->rpm;
 			return 0;
 
@@ -244,21 +266,31 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		 * 2) needs pwm*_enable to be 1 on controlled fans
 		 * So make sure we have correct data before allowing pwm* reads.
 		 */
-		res = wait_for_completion_interruptible(
-			&drvdata->pwm_status_received);
-		if (res)
-			return res;
-
 		switch (attr) {
 		case hwmon_pwm_enable:
+			res = wait_for_completion_interruptible(
+				&drvdata->fan_config_received);
+			if (res)
+				return res;
+
 			*val = fan->type != FAN_TYPE_NONE;
 			return 0;
 
 		case hwmon_pwm_mode:
+			res = wait_for_completion_interruptible(
+				&drvdata->fan_config_received);
+			if (res)
+				return res;
+
 			*val = fan->type == FAN_TYPE_PWM;
 			return 0;
 
 		case hwmon_pwm_input:
+			res = wait_for_completion_interruptible(
+				&drvdata->pwm_status_received);
+			if (res)
+				return res;
+
 			*val = scale_pwm_value(fan->duty_percent, 100, 255);
 			return 0;
 
@@ -269,6 +301,11 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		switch (attr) {
 		case hwmon_in_input:
+			res = wait_for_completion_interruptible(
+				&drvdata->voltage_status_received);
+			if (res)
+				return res;
+
 			*val = fan->in;
 			return 0;
 
@@ -279,6 +316,11 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_curr:
 		switch (attr) {
 		case hwmon_curr_input:
+			res = wait_for_completion_interruptible(
+				&drvdata->voltage_status_received);
+			if (res)
+				return res;
+
 			*val = fan->curr;
 			return 0;
 
@@ -348,7 +390,7 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 	struct fan_channel_status *fan = &drvdata->fan[channel];
 	int res;
 
-	res = wait_for_completion_interruptible(&drvdata->pwm_status_received);
+	res = wait_for_completion_interruptible(&drvdata->fan_config_received);
 	if (res)
 		return res;
 
@@ -403,7 +445,11 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	if (ret)
 		return ret;
 
+	spin_lock_bh(&drvdata->completions_lock);
 	reinit_completion(&drvdata->pwm_status_received);
+	reinit_completion(&drvdata->voltage_status_received);
+	reinit_completion(&drvdata->fan_config_received);
+	spin_unlock_bh(&drvdata->completions_lock);
 
 	return set_update_interval(drvdata, update_interval);
 }
@@ -496,7 +542,11 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
+
 	init_completion(&drvdata->pwm_status_received);
+	init_completion(&drvdata->voltage_status_received);
+	init_completion(&drvdata->fan_config_received);
+	spin_lock_init(&drvdata->completions_lock);
 
 	ret = hid_parse(hdev);
 	if (ret)
