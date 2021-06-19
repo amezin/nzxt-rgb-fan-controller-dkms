@@ -277,12 +277,9 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			return 0;
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 	}
-
-	if (channel < 0 || channel >= FAN_CHANNELS)
-		return -EINVAL;
 
 	switch (type) {
 	case hwmon_fan:
@@ -293,11 +290,12 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
+			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_rpm));
 			*val = drvdata->fan_rpm[channel];
 			return 0;
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 
 	case hwmon_pwm:
@@ -314,6 +312,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
+			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
 			*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
 			return 0;
 
@@ -323,6 +322,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
+			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
 			*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
 			return 0;
 
@@ -332,12 +332,14 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
+			BUG_ON(channel >=
+			       ARRAY_SIZE(drvdata->fan_duty_percent));
 			*val = scale_pwm_value(
 				drvdata->fan_duty_percent[channel], 100, 255);
 			return 0;
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 
 	case hwmon_in:
@@ -348,11 +350,12 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
+			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_in));
 			*val = drvdata->fan_in[channel];
 			return 0;
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 
 	case hwmon_curr:
@@ -363,15 +366,16 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 			if (res)
 				return res;
 
+			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_curr));
 			*val = drvdata->fan_curr[channel];
 			return 0;
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 
 	default:
-		return -EINVAL;
+		BUG();
 	}
 }
 
@@ -406,6 +410,7 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 		.channel_bit_mask = 1 << channel
 	};
 
+	BUG_ON(channel >= ARRAY_SIZE(report.duty_percent));
 	report.duty_percent[channel] = duty_percent;
 	ret = send_output_report(drvdata->hid, &report, sizeof(report));
 
@@ -440,6 +445,7 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 	 * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
 	 * even if it already is 1.
 	 */
+	BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
 	expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
 	return (val == expected_val) ? 0 : -ENOTSUPP;
 }
@@ -504,9 +510,6 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 
 	switch (type) {
 	case hwmon_pwm:
-		if (channel < 0 || channel >= FAN_CHANNELS)
-			return -EINVAL;
-
 		switch (attr) {
 		case hwmon_pwm_enable:
 			return set_pwm_enable(drvdata, channel, val);
@@ -515,7 +518,7 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			return set_pwm(drvdata, channel, val);
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 
 	case hwmon_chip:
@@ -524,11 +527,11 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 			return set_update_interval(drvdata, val);
 
 		default:
-			return -EINVAL;
+			BUG();
 		}
 
 	default:
-		return -EINVAL;
+		BUG();
 	}
 }
 
