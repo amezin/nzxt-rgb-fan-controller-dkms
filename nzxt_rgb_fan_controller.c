@@ -346,13 +346,17 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 {
 	struct fan_channel_status *fan = &drvdata->fan[channel];
-	long expected_val = fan->type != FAN_TYPE_NONE;
+	int res;
+
+	res = wait_for_completion_interruptible(&drvdata->pwm_status_received);
+	if (res)
+		return res;
 
 	/*
 	 * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
 	 * even if it already is 1.
 	 */
-	return (val == expected_val) ? 0 : -ENOTSUPP;
+	return (val == (fan->type != FAN_TYPE_NONE)) ? 0 : -ENOTSUPP;
 }
 
 static int set_update_interval(struct drvdata *drvdata, long val)
