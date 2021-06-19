@@ -120,15 +120,14 @@ static long scale_pwm_value(long val, long orig_max, long new_max)
 
 	val *= new_max;
 
-	if ((val % orig_max) * 2 >= orig_max) {
+	if ((val % orig_max) * 2 >= orig_max)
 		return val / orig_max + 1;
-	} else {
-		/*
-		 * Non-zero values should not become zero: 0 completely turns
-		 * off the fan
-		 */
-		return max(val / orig_max, 1L);
-	}
+
+	/*
+	 * Non-zero values should not become zero: 0 completely turns off the
+	 * fan
+	 */
+	return max(val / orig_max, 1L);
 }
 
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
