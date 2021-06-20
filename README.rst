@@ -51,4 +51,8 @@ pwm[1-3]		Controls fan speed: PWM duty cycle for PWM-controlled
 pwm[1-3]_enable		Read-only, 1 if the fan was detected, 0 otherwise.
 pwm[1-3]_mode		Read-only, 1 for PWM-controlled fans, 0 for other fans
 			(or if no fan connected).
+update_interval		The interval at which all inputs are updated (in
+			milliseconds). The default is 1000ms. Minimum is 250ms.
+			Can only be a multiple of 250ms (will be rounded if
+			necessary).
 =======================	========================================================
