@@ -453,7 +453,7 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 static int set_update_interval(struct drvdata *drvdata, long val)
 {
 	uint8_t val_transformed =
-		max(val / UPDATE_INTERVAL_PRECISION_MS, 1L) - 1;
+		clamp_val(val / UPDATE_INTERVAL_PRECISION_MS - 1, 0, 255);
 	uint8_t report[] = {
 		OUTPUT_REPORT_ID_INIT_COMMAND,
 		INIT_COMMAND_SET_UPDATE_INTERVAL,
