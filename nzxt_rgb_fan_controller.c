@@ -6,6 +6,7 @@
 #include <linux/hid.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 #include <asm/byteorder.h>
@@ -129,7 +130,9 @@ struct drvdata {
 	bool fan_config_received;
 
 	wait_queue_head_t wq;
+
 	long update_interval;
+	struct mutex update_interval_mutex;
 };
 
 static long scale_pwm_value(long val, long orig_max, long new_max)
@@ -494,13 +497,18 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 
 	int ret;
 
-	ret = send_output_report(drvdata->hid, report, sizeof(report));
+	ret = mutex_lock_interruptible(&drvdata->update_interval_mutex);
 	if (ret)
 		return ret;
 
-	drvdata->update_interval =
-		(val_transformed + 1) * UPDATE_INTERVAL_PRECISION_MS;
-	return 0;
+	ret = send_output_report(drvdata->hid, report, sizeof(report));
+	if (ret == 0)
+		drvdata->update_interval =
+			(val_transformed + 1) * UPDATE_INTERVAL_PRECISION_MS;
+
+	mutex_unlock(&drvdata->update_interval_mutex);
+
+	return ret;
 }
 
 static int detect_fans(struct hid_device *hdev)
@@ -623,6 +631,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
 	init_waitqueue_head(&drvdata->wq);
+	mutex_init(&drvdata->update_interval_mutex);
 
 	ret = hid_parse(hdev);
 	if (ret)
