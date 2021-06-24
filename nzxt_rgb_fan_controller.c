@@ -3,11 +3,11 @@
  *  Copyright (c) 2021 Aleksandr Mezin
  */
 
-#include <linux/completion.h>
 #include <linux/hid.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/wait.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
@@ -119,16 +119,16 @@ struct drvdata {
 
 	uint8_t fan_duty_percent[FAN_CHANNELS];
 	uint16_t fan_rpm[FAN_CHANNELS];
-	struct completion pwm_status_received;
+	bool pwm_status_received;
 
 	uint16_t fan_in[FAN_CHANNELS];
 	uint16_t fan_curr[FAN_CHANNELS];
-	struct completion voltage_status_received;
+	bool voltage_status_received;
 
 	uint8_t fan_type[FAN_CHANNELS];
-	struct completion fan_config_received;
+	bool fan_config_received;
 
-	spinlock_t completions_lock;
+	wait_queue_head_t wq;
 	long update_interval;
 };
 
@@ -164,39 +164,17 @@ static void handle_fan_config_report(struct drvdata *drvdata, void *data,
 	if (report->magic != 0x03)
 		return;
 
+	spin_lock(&drvdata->wq.lock);
+
 	for (i = 0; i < FAN_CHANNELS; i++)
 		drvdata->fan_type[i] = report->fan_type[i];
 
-	spin_lock(&drvdata->completions_lock);
-
-	/*
-	 * Looking at the implementation, calling complete_all()
-	 * unconditionally should be fine. But the docs say "Calling
-	 * complete_all() multiple times is a bug"
-	 */
-	if (!completion_done(&drvdata->fan_config_received))
-		complete_all(&drvdata->fan_config_received);
-
-	spin_unlock(&drvdata->completions_lock);
-}
-
-static void notify_fan_data_ready(struct drvdata *drvdata,
-				  struct completion *completion)
-{
-	spin_lock(&drvdata->completions_lock);
-
-	/*
-	 * The device sends INPUT_REPORT_ID_FAN_CONFIG = 0x61 report in response
-	 * to "detect fans" command. Only signal completion for other data after
-	 * getting 0x61, to make sure that fan detection is complete and the
-	 * data is not stale.
-	 */
-	if (completion_done(&drvdata->fan_config_received)) {
-		if (!completion_done(completion))
-			complete_all(completion);
+	if (!drvdata->fan_config_received) {
+		drvdata->fan_config_received = true;
+		wake_up_all_locked(&drvdata->wq);
 	}
 
-	spin_unlock(&drvdata->completions_lock);
+	spin_unlock(&drvdata->wq.lock);
 }
 
 static void handle_fan_status_report(struct drvdata *drvdata, void *data,
@@ -208,6 +186,18 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 	if (size < sizeof(struct fan_status_report))
 		return;
 
+	spin_lock(&drvdata->wq.lock);
+
+	/*
+	 * The device sends INPUT_REPORT_ID_FAN_CONFIG = 0x61 report in response
+	 * to "detect fans" command. Only accept other data after getting 0x61,
+	 * to make sure that fan detection is complete and the data is not stale.
+	 */
+	if (!drvdata->fan_config_received) {
+		spin_unlock(&drvdata->wq.lock);
+		return;
+	}
+
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
 		for (i = 0; i < FAN_CHANNELS; i++) {
@@ -218,7 +208,10 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 				report->fan_speed.duty_percent[i];
 		}
 
-		notify_fan_data_ready(drvdata, &drvdata->pwm_status_received);
+		if (!drvdata->pwm_status_received) {
+			drvdata->pwm_status_received = true;
+			wake_up_all_locked(&drvdata->wq);
+		}
 		break;
 
 	case FAN_STATUS_REPORT_VOLTAGE:
@@ -230,10 +223,14 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 				&report->fan_voltage.fan_current[i]);
 		}
 
-		notify_fan_data_ready(drvdata,
-				      &drvdata->voltage_status_received);
+		if (!drvdata->voltage_status_received) {
+			drvdata->voltage_status_received = true;
+			wake_up_all_locked(&drvdata->wq);
+		}
 		break;
 	}
+
+	spin_unlock(&drvdata->wq.lock);
 }
 
 static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -285,14 +282,17 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_fan:
 		switch (attr) {
 		case hwmon_fan_input:
-			res = wait_for_completion_interruptible(
-				&drvdata->pwm_status_received);
-			if (res)
-				return res;
-
 			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_rpm));
-			*val = drvdata->fan_rpm[channel];
-			return 0;
+
+			spin_lock_irq(&drvdata->wq.lock);
+			res = wait_event_interruptible_locked_irq(
+				drvdata->wq, drvdata->pwm_status_received);
+
+			if (res == 0)
+				*val = drvdata->fan_rpm[channel];
+
+			spin_unlock_irq(&drvdata->wq.lock);
+			return res;
 
 		default:
 			BUG();
@@ -307,36 +307,48 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		 */
 		switch (attr) {
 		case hwmon_pwm_enable:
-			res = wait_for_completion_interruptible(
-				&drvdata->fan_config_received);
-			if (res)
-				return res;
-
 			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
-			*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
-			return 0;
+
+			spin_lock_irq(&drvdata->wq.lock);
+			res = wait_event_interruptible_locked_irq(
+				drvdata->wq, drvdata->fan_config_received);
+
+			if (res == 0)
+				*val = drvdata->fan_type[channel] !=
+				       FAN_TYPE_NONE;
+
+			spin_unlock_irq(&drvdata->wq.lock);
+			return res;
 
 		case hwmon_pwm_mode:
-			res = wait_for_completion_interruptible(
-				&drvdata->fan_config_received);
-			if (res)
-				return res;
-
 			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
-			*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
-			return 0;
+
+			spin_lock_irq(&drvdata->wq.lock);
+			res = wait_event_interruptible_locked_irq(
+				drvdata->wq, drvdata->fan_config_received);
+
+			if (res == 0)
+				*val = drvdata->fan_type[channel] ==
+				       FAN_TYPE_PWM;
+
+			spin_unlock_irq(&drvdata->wq.lock);
+			return res;
 
 		case hwmon_pwm_input:
-			res = wait_for_completion_interruptible(
-				&drvdata->pwm_status_received);
-			if (res)
-				return res;
-
 			BUG_ON(channel >=
 			       ARRAY_SIZE(drvdata->fan_duty_percent));
-			*val = scale_pwm_value(
-				drvdata->fan_duty_percent[channel], 100, 255);
-			return 0;
+
+			spin_lock_irq(&drvdata->wq.lock);
+			res = wait_event_interruptible_locked_irq(
+				drvdata->wq, drvdata->pwm_status_received);
+
+			if (res == 0)
+				*val = scale_pwm_value(
+					drvdata->fan_duty_percent[channel], 100,
+					255);
+
+			spin_unlock_irq(&drvdata->wq.lock);
+			return res;
 
 		default:
 			BUG();
@@ -345,14 +357,17 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_in:
 		switch (attr) {
 		case hwmon_in_input:
-			res = wait_for_completion_interruptible(
-				&drvdata->voltage_status_received);
-			if (res)
-				return res;
-
 			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_in));
-			*val = drvdata->fan_in[channel];
-			return 0;
+
+			spin_lock_irq(&drvdata->wq.lock);
+			res = wait_event_interruptible_locked_irq(
+				drvdata->wq, drvdata->voltage_status_received);
+
+			if (res == 0)
+				*val = drvdata->fan_in[channel];
+
+			spin_unlock_irq(&drvdata->wq.lock);
+			return res;
 
 		default:
 			BUG();
@@ -361,14 +376,17 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_curr:
 		switch (attr) {
 		case hwmon_curr_input:
-			res = wait_for_completion_interruptible(
-				&drvdata->voltage_status_received);
-			if (res)
-				return res;
-
 			BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_curr));
-			*val = drvdata->fan_curr[channel];
-			return 0;
+
+			spin_lock_irq(&drvdata->wq.lock);
+			res = wait_event_interruptible_locked_irq(
+				drvdata->wq, drvdata->voltage_status_received);
+
+			if (res == 0)
+				*val = drvdata->fan_curr[channel];
+
+			spin_unlock_irq(&drvdata->wq.lock);
+			return res;
 
 		default:
 			BUG();
@@ -432,21 +450,30 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	return ret;
 }
 
+/*
+ * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable even if it
+ * already is 1.
+ */
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 {
 	long expected_val;
 	int res;
 
-	res = wait_for_completion_interruptible(&drvdata->fan_config_received);
+	BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
+
+	spin_lock_irq(&drvdata->wq.lock);
+
+	res = wait_event_interruptible_locked_irq(drvdata->wq,
+						  drvdata->fan_config_received);
+
+	if (res == 0)
+		expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+
+	spin_unlock_irq(&drvdata->wq.lock);
+
 	if (res)
 		return res;
 
-	/*
-	 * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable
-	 * even if it already is 1.
-	 */
-	BUG_ON(channel >= ARRAY_SIZE(drvdata->fan_type));
-	expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
 	return (val == expected_val) ? 0 : -ENOTSUPP;
 }
 
@@ -490,15 +517,15 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 {
 	int ret;
 
+	spin_lock_bh(&drvdata->wq.lock);
+	drvdata->fan_config_received = false;
+	drvdata->pwm_status_received = false;
+	drvdata->voltage_status_received = false;
+	spin_unlock_bh(&drvdata->wq.lock);
+
 	ret = detect_fans(drvdata->hid);
 	if (ret)
 		return ret;
-
-	spin_lock_bh(&drvdata->completions_lock);
-	reinit_completion(&drvdata->pwm_status_received);
-	reinit_completion(&drvdata->voltage_status_received);
-	reinit_completion(&drvdata->fan_config_received);
-	spin_unlock_bh(&drvdata->completions_lock);
 
 	return set_update_interval(drvdata, update_interval);
 }
@@ -595,11 +622,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
-
-	init_completion(&drvdata->pwm_status_received);
-	init_completion(&drvdata->voltage_status_received);
-	init_completion(&drvdata->fan_config_received);
-	spin_lock_init(&drvdata->completions_lock);
+	init_waitqueue_head(&drvdata->wq);
 
 	ret = hid_parse(hdev);
 	if (ret)
