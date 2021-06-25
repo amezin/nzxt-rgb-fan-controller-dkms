@@ -130,11 +130,19 @@ struct drvdata {
 	bool fan_config_received;
 
 	wait_queue_head_t wq;
-
+	/*
+	 * mutex is used to:
+	 * 1) Prevent concurrent conflicting changes to update interval and pwm
+	 * values (after sending an output hid report, the corresponding field
+	 * in drvdata must be updated, and only then new output reports can be
+	 * sent).
+	 * 2) Synchronize access to output_buffer (well, the buffer is here,
+	 * because synchronization is necessary anyway - so why not get rid of
+	 * a kmalloc?).
+	 */
+	struct mutex mutex;
 	long update_interval;
-	struct mutex update_interval_mutex;
-
-	struct mutex set_pwm_mutex;
+	uint8_t output_buffer[OUTPUT_REPORT_SIZE];
 };
 
 static long scale_pwm_value(long val, long orig_max, long new_max)
@@ -402,23 +410,24 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static int send_output_report(struct hid_device *hdev, const void *data,
+static int send_output_report(struct drvdata *drvdata, const void *data,
 			      size_t data_size)
 {
-	void *buffer;
 	int ret;
 
-	if (data_size > OUTPUT_REPORT_SIZE)
+	lockdep_assert_held(&drvdata->mutex);
+
+	if (data_size > sizeof(drvdata->output_buffer))
 		return -EINVAL;
 
-	buffer = kzalloc(OUTPUT_REPORT_SIZE, GFP_KERNEL);
+	memcpy(drvdata->output_buffer, data, data_size);
 
-	if (!buffer)
-		return -ENOMEM;
+	if (data_size < sizeof(drvdata->output_buffer))
+		memset(drvdata->output_buffer + data_size, 0,
+		       sizeof(drvdata->output_buffer) - data_size);
 
-	memcpy(buffer, data, data_size);
-	ret = hid_hw_output_report(hdev, buffer, OUTPUT_REPORT_SIZE);
-	kfree(buffer);
+	ret = hid_hw_output_report(drvdata->hid, drvdata->output_buffer,
+				   sizeof(drvdata->output_buffer));
 	return ret < 0 ? ret : 0;
 }
 
@@ -435,12 +444,12 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 
 	BUG_ON(channel >= ARRAY_SIZE(report.duty_percent));
 
-	ret = mutex_lock_interruptible(&drvdata->set_pwm_mutex);
+	ret = mutex_lock_interruptible(&drvdata->mutex);
 	if (ret)
 		return ret;
 
 	report.duty_percent[channel] = duty_percent;
-	ret = send_output_report(drvdata->hid, &report, sizeof(report));
+	ret = send_output_report(drvdata, &report, sizeof(report));
 
 	if (ret == 0) {
 		/*
@@ -457,7 +466,7 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 		drvdata->fan_duty_percent[channel] = duty_percent;
 	}
 
-	mutex_unlock(&drvdata->set_pwm_mutex);
+	mutex_unlock(&drvdata->mutex);
 
 	return ret;
 }
@@ -506,33 +515,29 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 
 	int ret;
 
-	ret = mutex_lock_interruptible(&drvdata->update_interval_mutex);
+	ret = mutex_lock_interruptible(&drvdata->mutex);
 	if (ret)
 		return ret;
 
-	ret = send_output_report(drvdata->hid, report, sizeof(report));
+	ret = send_output_report(drvdata, report, sizeof(report));
 	if (ret == 0)
 		drvdata->update_interval =
 			(val_transformed + 1) * UPDATE_INTERVAL_PRECISION_MS;
 
-	mutex_unlock(&drvdata->update_interval_mutex);
+	mutex_unlock(&drvdata->mutex);
 
 	return ret;
-}
-
-static int detect_fans(struct hid_device *hdev)
-{
-	uint8_t report[] = {
-		OUTPUT_REPORT_ID_INIT_COMMAND,
-		INIT_COMMAND_DETECT_FANS,
-	};
-
-	return send_output_report(hdev, report, sizeof(report));
 }
 
 static int init_device(struct drvdata *drvdata, long update_interval)
 {
 	int ret;
+	uint8_t detect_fans_report[] = {
+		OUTPUT_REPORT_ID_INIT_COMMAND,
+		INIT_COMMAND_DETECT_FANS,
+	};
+
+	mutex_lock(&drvdata->mutex);
 
 	spin_lock_bh(&drvdata->wq.lock);
 	drvdata->fan_config_received = false;
@@ -540,7 +545,11 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	drvdata->voltage_status_received = false;
 	spin_unlock_bh(&drvdata->wq.lock);
 
-	ret = detect_fans(drvdata->hid);
+	ret = send_output_report(drvdata, detect_fans_report,
+				 sizeof(detect_fans_report));
+
+	mutex_unlock(&drvdata->mutex);
+
 	if (ret)
 		return ret;
 
@@ -640,8 +649,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
 	init_waitqueue_head(&drvdata->wq);
-	mutex_init(&drvdata->update_interval_mutex);
-	mutex_init(&drvdata->set_pwm_mutex);
+	mutex_init(&drvdata->mutex);
 
 	ret = hid_parse(hdev);
 	if (ret)
