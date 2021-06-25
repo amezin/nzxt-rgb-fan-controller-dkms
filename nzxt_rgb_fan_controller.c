@@ -641,8 +641,12 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hid = hdev;
 	hid_set_drvdata(hdev, drvdata);
+
 	init_waitqueue_head(&drvdata->wq);
+
 	mutex_init(&drvdata->mutex);
+	devm_add_action(&hdev->dev, (void (*)(void *))mutex_destroy,
+			&drvdata->mutex);
 
 	ret = hid_parse(hdev);
 	if (ret)
