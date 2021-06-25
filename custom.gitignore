@@ -13,3 +13,5 @@
 /*.pkg.tar.*
 /pkg/
 /src/
+
+!/.github/
