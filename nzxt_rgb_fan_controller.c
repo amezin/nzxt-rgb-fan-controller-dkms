@@ -669,7 +669,11 @@ static void hid_remove(struct hid_device *hdev)
 }
 
 static const struct hid_device_id hid_id_table[] = {
-	{ HID_USB_DEVICE(0x1e71, 0x2009) },
+	{ HID_USB_DEVICE(0x1e71, 0x2006) }, /* NZXT Smart Device V2 */
+	{ HID_USB_DEVICE(0x1e71, 0x200d) }, /* NZXT Smart Device V2 */
+	{ HID_USB_DEVICE(0x1e71, 0x2009) }, /* NZXT RGB & Fan Controller */
+	{ HID_USB_DEVICE(0x1e71, 0x200e) }, /* NZXT RGB & Fan Controller */
+	{ HID_USB_DEVICE(0x1e71, 0x2010) }, /* NZXT RGB & Fan Controller */
 	{},
 };
 
@@ -696,7 +700,7 @@ static void __exit nzxt_rgb_fan_controller_exit(void)
 
 MODULE_DEVICE_TABLE(hid, hid_id_table);
 MODULE_AUTHOR("Aleksandr Mezin <mezin.alexander@gmail.com>");
-MODULE_DESCRIPTION("Driver for NZXT RGB & Fan controller");
+MODULE_DESCRIPTION("Driver for NZXT RGB & Fan Controller/Smart Device V2");
 MODULE_LICENSE("GPL");
 
 late_initcall(nzxt_rgb_fan_controller_init);
