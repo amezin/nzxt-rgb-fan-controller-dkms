@@ -133,6 +133,8 @@ struct drvdata {
 
 	long update_interval;
 	struct mutex update_interval_mutex;
+
+	struct mutex set_pwm_mutex;
 };
 
 static long scale_pwm_value(long val, long orig_max, long new_max)
@@ -432,6 +434,11 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	};
 
 	BUG_ON(channel >= ARRAY_SIZE(report.duty_percent));
+
+	ret = mutex_lock_interruptible(&drvdata->set_pwm_mutex);
+	if (ret)
+		return ret;
+
 	report.duty_percent[channel] = duty_percent;
 	ret = send_output_report(drvdata->hid, &report, sizeof(report));
 
@@ -449,6 +456,8 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 		 */
 		drvdata->fan_duty_percent[channel] = duty_percent;
 	}
+
+	mutex_unlock(&drvdata->set_pwm_mutex);
 
 	return ret;
 }
@@ -632,6 +641,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	hid_set_drvdata(hdev, drvdata);
 	init_waitqueue_head(&drvdata->wq);
 	mutex_init(&drvdata->update_interval_mutex);
+	mutex_init(&drvdata->set_pwm_mutex);
 
 	ret = hid_parse(hdev);
 	if (ret)
