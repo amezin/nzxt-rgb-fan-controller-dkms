@@ -5,6 +5,7 @@
 
 #include <linux/hid.h>
 #include <linux/hwmon.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
