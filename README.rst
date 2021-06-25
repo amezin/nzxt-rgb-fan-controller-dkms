@@ -53,6 +53,4 @@ pwm[1-3]_mode		Read-only, 1 for PWM-controlled fans, 0 for other fans
 			(or if no fan connected).
 update_interval		The interval at which all inputs are updated (in
 			milliseconds). The default is 1000ms. Minimum is 250ms.
-			Can only be a multiple of 250ms (will be rounded if
-			necessary).
 =======================	========================================================

@@ -19,7 +19,6 @@
 #define FAN_CHANNELS 3
 #define FAN_CHANNELS_MAX 8
 
-#define UPDATE_INTERVAL_PRECISION_MS 250
 #define UPDATE_INTERVAL_DEFAULT_MS 1000
 
 enum {
@@ -471,19 +470,48 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 	return (val == expected_val) ? 0 : -ENOTSUPP;
 }
 
+/*
+ * Control byte	| Actual update interval
+ * 0xff		| 65.5
+ * 0xf7		| 63.46
+ * 0x7f		| 32.74
+ * 0x3f		| 16.36
+ * 0x1f		| 8.17
+ * 0x0f		| 4.07
+ * 0x07		| 2.02
+ * 0x03		| 1.00
+ * 0x02		| 0.744
+ * 0x01		| 0.488
+ * 0x00		| 0.25
+ */
+static u8 update_interval_to_control_byte(long interval)
+{
+	if (interval <= 250)
+		return 0;
+
+	return clamp_val(1 + DIV_ROUND_CLOSEST(interval - 488, 256), 0, 255);
+}
+
+static long control_byte_to_update_interval(u8 control_byte)
+{
+	if (control_byte == 0)
+		return 250;
+
+	return 488 + (control_byte - 1) * 256;
+}
+
 static int set_update_interval(struct drvdata *drvdata, long val)
 {
-	u8 val_transformed =
-		clamp_val(val / UPDATE_INTERVAL_PRECISION_MS - 1, 0, 255);
+	u8 control = update_interval_to_control_byte(val);
 	u8 report[] = {
 		OUTPUT_REPORT_ID_INIT_COMMAND,
 		INIT_COMMAND_SET_UPDATE_INTERVAL,
 		0x01,
 		0xe8,
-		val_transformed,
+		control,
 		0x01,
 		0xe8,
-		val_transformed,
+		control,
 	};
 
 	int ret;
@@ -495,7 +523,7 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 	ret = send_output_report(drvdata, report, sizeof(report));
 	if (ret == 0)
 		drvdata->update_interval =
-			(val_transformed + 1) * UPDATE_INTERVAL_PRECISION_MS;
+			control_byte_to_update_interval(control);
 
 	mutex_unlock(&drvdata->mutex);
 
