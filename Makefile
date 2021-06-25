@@ -45,14 +45,17 @@ format: .clang-format
 compile_commands.json: $(OBJ_FILE)
 	python3 .vscode/generate_compdb.py -O $(KDIR) $(CURDIR)
 
-.clang-format .gitattributes:
+.gitattributes:
 	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
 
-upstream.gitignore:
-	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/.gitignore
+upstream.gitignore upstream.clang-format:
+	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$(suffix $@)
 
 .gitignore: upstream.gitignore custom.gitignore
 	cat $^ >$@
+
+.clang-format: clang-format.sed upstream.clang-format
+	sed -E -f $^ >$@
 
 checkpatch:
 	$(KDIR)/scripts/checkpatch.pl --strict --no-tree -f $(SRC_FILE)

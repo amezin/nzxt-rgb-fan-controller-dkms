@@ -180,8 +180,7 @@ static long scale_pwm_value(long val, long orig_max, long new_max)
 	return max(val / orig_max, 1L);
 }
 
-static void handle_fan_config_report(struct drvdata *drvdata, void *data,
-				     int size)
+static void handle_fan_config_report(struct drvdata *drvdata, void *data, int size)
 {
 	struct fan_config_report *report = data;
 	int i;
@@ -205,8 +204,7 @@ static void handle_fan_config_report(struct drvdata *drvdata, void *data,
 	spin_unlock(&drvdata->wq.lock);
 }
 
-static void handle_fan_status_report(struct drvdata *drvdata, void *data,
-				     int size)
+static void handle_fan_status_report(struct drvdata *drvdata, void *data, int size)
 {
 	struct fan_status_report *report = data;
 	int i;
@@ -232,7 +230,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data,
 			drvdata->fan_type[i] = report->fan_type[i];
 			drvdata->fan_rpm[i] =
 				get_unaligned_le16(&report->fan_speed.fan_rpm[i]);
-			drvdata->fan_duty_percent[i] = report->fan_speed.duty_percent[i];
+			drvdata->fan_duty_percent[i] =
+				report->fan_speed.duty_percent[i];
 		}
 
 		if (!drvdata->pwm_status_received) {
@@ -564,8 +563,7 @@ static const struct hwmon_ops hwmon_ops = {
 
 static const struct hwmon_channel_info *channel_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
-	HWMON_CHANNEL_INFO(pwm,
-			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
+	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE),
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
