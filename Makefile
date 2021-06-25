@@ -55,10 +55,10 @@ upstream.gitignore:
 	cat $^ >$@
 
 checkpatch:
-	$(KDIR)/scripts/checkpatch.pl --no-tree -f $(SRC_FILE)
+	$(KDIR)/scripts/checkpatch.pl --strict --no-tree -f $(SRC_FILE)
 
 checkpatch-fix:
-	$(KDIR)/scripts/checkpatch.pl --no-tree --fix-inplace -f $(SRC_FILE)
+	$(KDIR)/scripts/checkpatch.pl --strict --no-tree --fix-inplace -f $(SRC_FILE)
 
 .PHONY: checkpatch checkpatch-fix
 
