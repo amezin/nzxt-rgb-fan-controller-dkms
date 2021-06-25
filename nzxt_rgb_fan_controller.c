@@ -296,7 +296,13 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	if (type == hwmon_chip) {
 		switch (attr) {
 		case hwmon_chip_update_interval:
+			res = mutex_lock_interruptible(&drvdata->mutex);
+
+			if (res)
+				return res;
+
 			*val = drvdata->update_interval;
+			mutex_unlock(&drvdata->mutex);
 			return 0;
 
 		default:
