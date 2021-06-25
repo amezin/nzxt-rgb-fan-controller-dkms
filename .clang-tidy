@@ -1,2 +1,2 @@
-Checks: 'clang-diagnostic-*,clang-analyzer-*,bugprone-*,concurrency-*,performance-*,portability-*,linuxkernel-*'
+Checks: 'clang-diagnostic-*,clang-analyzer-*,bugprone-*,concurrency-*,performance-*,portability-*,linuxkernel-*,-performance-no-int-to-ptr'
 FormatStyle: file
