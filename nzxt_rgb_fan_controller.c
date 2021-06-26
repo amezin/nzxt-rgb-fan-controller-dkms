@@ -288,13 +288,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	if (type == hwmon_chip) {
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			res = mutex_lock_interruptible(&drvdata->mutex);
-
-			if (res)
-				return res;
-
-			*val = drvdata->update_interval;
-			mutex_unlock(&drvdata->mutex);
+			*val = READ_ONCE(drvdata->update_interval);
 			return 0;
 
 		default:
@@ -515,8 +509,8 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 
 	ret = send_output_report(drvdata, report, sizeof(report));
 	if (ret == 0)
-		drvdata->update_interval =
-			control_byte_to_update_interval(control);
+		WRITE_ONCE(drvdata->update_interval,
+			   control_byte_to_update_interval(control));
 
 	mutex_unlock(&drvdata->mutex);
 
@@ -627,7 +621,7 @@ static int hid_reset_resume(struct hid_device *hdev)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 
-	return init_device(drvdata, drvdata->update_interval);
+	return init_device(drvdata, READ_ONCE(drvdata->update_interval));
 }
 
 static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
