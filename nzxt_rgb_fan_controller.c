@@ -500,19 +500,12 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 		0xe8,
 		control,
 	};
-
 	int ret;
-
-	ret = mutex_lock_interruptible(&drvdata->mutex);
-	if (ret)
-		return ret;
 
 	ret = send_output_report(drvdata, report, sizeof(report));
 	if (ret == 0)
 		WRITE_ONCE(drvdata->update_interval,
 			   control_byte_to_update_interval(control));
-
-	mutex_unlock(&drvdata->mutex);
 
 	return ret;
 }
@@ -536,18 +529,19 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	ret = send_output_report(drvdata, detect_fans_report,
 				 sizeof(detect_fans_report));
 
+	if (ret == 0)
+		ret = set_update_interval(drvdata, update_interval);
+
 	mutex_unlock(&drvdata->mutex);
 
-	if (ret)
-		return ret;
-
-	return set_update_interval(drvdata, update_interval);
+	return ret;
 }
 
 static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 		       u32 attr, int channel, long val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
+	int ret;
 
 	switch (type) {
 	case hwmon_pwm:
@@ -565,7 +559,14 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	case hwmon_chip:
 		switch (attr) {
 		case hwmon_chip_update_interval:
-			return set_update_interval(drvdata, val);
+			ret = mutex_lock_interruptible(&drvdata->mutex);
+			if (ret)
+				return ret;
+
+			ret = set_update_interval(drvdata, val);
+
+			mutex_unlock(&drvdata->mutex);
+			return ret;
 
 		default:
 			return -EINVAL;
