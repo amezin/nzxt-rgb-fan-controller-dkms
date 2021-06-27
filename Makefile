@@ -4,7 +4,13 @@ ifeq ($(KERNELRELEASE),)
 
 KDIR := /lib/modules/$(shell uname -r)/build
 
-all: modules compile_commands.json
+all: modules
+
+GEN_COMPILE_COMMANDS := .vscode/generate_compdb.py
+
+ifneq ($(wildcard $(GEN_COMPILE_COMMANDS)),)
+all: compile_commands.json
+endif
 
 modules clean modules_install:
 	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
@@ -42,8 +48,8 @@ format: .clang-format
 
 .PHONY: format
 
-compile_commands.json: $(OBJ_FILE)
-	python3 .vscode/generate_compdb.py -O $(KDIR) $(CURDIR)
+compile_commands.json: $(OBJ_FILE) $(GEN_COMPILE_COMMANDS)
+	python3 $(GEN_COMPILE_COMMANDS) -O $(KDIR) $(CURDIR)
 
 .gitattributes:
 	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
