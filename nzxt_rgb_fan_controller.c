@@ -144,6 +144,11 @@ struct drvdata {
 	u8 fan_type[FAN_CHANNELS];
 	bool fan_config_received;
 
+	/*
+	 * wq is used to wait for *_received flags to become true.
+	 * All accesses to *_received flags and fan_* arrays are performed with
+	 * wq.lock held.
+	 */
 	wait_queue_head_t wq;
 	/*
 	 * mutex is used to:
@@ -299,16 +304,6 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 	spin_lock_irq(&drvdata->wq.lock);
 
 	switch (type) {
-	case hwmon_fan:
-		if (attr == hwmon_fan_input) {
-			res = wait_event_interruptible_locked_irq(drvdata->wq,
-								  drvdata->pwm_status_received);
-
-			if (res == 0)
-				*val = drvdata->fan_rpm[channel];
-		}
-		break;
-
 	case hwmon_pwm:
 		/*
 		 * fancontrol:
@@ -344,6 +339,21 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 						       100, 255);
 
 			break;
+		}
+		break;
+
+	case hwmon_fan:
+		/*
+		 * It's not strictly necessary to wait for *_received in the
+		 * remaining cases (fancontrol doesn't care about them). But I'm
+		 * doing it to have consistent behavior.
+		 */
+		if (attr == hwmon_fan_input) {
+			res = wait_event_interruptible_locked_irq(drvdata->wq,
+								  drvdata->pwm_status_received);
+
+			if (res == 0)
+				*val = drvdata->fan_rpm[channel];
 		}
 		break;
 
@@ -423,6 +433,16 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	 *
 	 * This avoids "fan stuck" messages from pwmconfig, and fancontrol
 	 * setting fan speed to 100% during shutdown.
+	 *
+	 * A race with hid_raw_event()->handle_fan_status_report() is possible,
+	 * but:
+	 * 1) it shouldn't happen in practice - handle_fan_status_report is
+	 * called only once in >= 250 ms.
+	 * 2) both functions will be storing the same value - the device accepts
+	 * pwm values unconditionally, even if a fan is not plugged in/not
+	 * detected.
+	 * 3) worst (probably impossible) case: one pwm* will have incorrect
+	 * value for the duration of update_interval.
 	 */
 	if (ret == 0)
 		drvdata->fan_duty_percent[channel] = duty_percent;
@@ -518,6 +538,13 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 		INIT_COMMAND_DETECT_FANS,
 	};
 
+	/*
+	 * This lock is here only to avoid lockdep warning. Am I using lockdep
+	 * incorrectly?
+	 * There's (currently) no way init_device() could be called multiple
+	 * times concurrently (or concurrently with other functions that lock
+	 * the mutex).
+	 */
 	mutex_lock(&drvdata->mutex);
 
 	spin_lock_bh(&drvdata->wq.lock);
