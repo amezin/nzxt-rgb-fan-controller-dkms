@@ -51,16 +51,13 @@ format: .clang-format
 compile_commands.json: $(OBJ_FILE) $(GEN_COMPILE_COMMANDS)
 	python3 $(GEN_COMPILE_COMMANDS) -O $(KDIR) $(CURDIR)
 
-.gitattributes:
-	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$@
+upstream_config/%:
+	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$*
 
-upstream.gitignore upstream.clang-format:
-	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$(suffix $@)
-
-.gitignore: upstream.gitignore custom.gitignore
+.gitignore: upstream_config/.gitignore custom.gitignore
 	cat $^ >$@
 
-.clang-format: clang-format.sed upstream.clang-format
+.clang-format: clang-format.sed upstream_config/.clang-format
 	sed -E -f $^ >$@
 
 checkpatch:
