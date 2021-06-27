@@ -6,6 +6,6 @@ trim_trailing_whitespace = true
 indent_style = tab
 indent_size = 8
 
-[{PKGBUILD,.clang-format,.clangd,*.yml}]
+[{PKGBUILD,.clang-format,.clangd,*.yml,Vagrantfile}]
 indent_style = space
 indent_size = 2
