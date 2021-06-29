@@ -429,20 +429,11 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	 * immediately (i. e. read from pwm* sysfs should return the value
 	 * written into it). The device seems to always accept pwm values - even
 	 * when there is no fan connected - so update pwm status without waiting
-	 * for a report, to make pwmconfig and fancontrol happy.
-	 *
-	 * This avoids "fan stuck" messages from pwmconfig, and fancontrol
-	 * setting fan speed to 100% during shutdown.
-	 *
-	 * A race with hid_raw_event()->handle_fan_status_report() is possible,
-	 * but:
-	 * 1) it shouldn't happen in practice - handle_fan_status_report is
-	 * called only once in >= 250 ms.
-	 * 2) both functions will be storing the same value - the device accepts
-	 * pwm values unconditionally, even if a fan is not plugged in/not
-	 * detected.
-	 * 3) worst (probably impossible) case: one pwm* will have incorrect
-	 * value for the duration of update_interval.
+	 * for a report, to make pwmconfig and fancontrol happy. Worst case -
+	 * if the device didn't accept new pwm value for some reason (never seen
+	 * this in practice) - it will be reported incorrectly only until next
+	 * update. This avoids "fan stuck" messages from pwmconfig, and
+	 * fancontrol setting fan speed to 100% during shutdown.
 	 */
 	if (ret == 0)
 		drvdata->fan_duty_percent[channel] = duty_percent;
