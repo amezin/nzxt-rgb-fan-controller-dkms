@@ -435,8 +435,11 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	 * update. This avoids "fan stuck" messages from pwmconfig, and
 	 * fancontrol setting fan speed to 100% during shutdown.
 	 */
-	if (ret == 0)
+	if (ret == 0) {
+		spin_lock_bh(&drvdata->wq.lock);
 		drvdata->fan_duty_percent[channel] = duty_percent;
+		spin_unlock_bh(&drvdata->wq.lock);
+	}
 
 	mutex_unlock(&drvdata->mutex);
 
