@@ -19,5 +19,5 @@ pkgver() {
 }
 
 package() {
-  install -Dm 644 ${source[@]} -t "${pkgdir}"/usr/src/nzxt_grid-${pkgver}
+  install -Dm 644 ${source[@]} -t "${pkgdir}"/usr/src/nzxt_rgb_fan_controller-${pkgver}
 }
