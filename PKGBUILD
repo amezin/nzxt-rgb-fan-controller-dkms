@@ -1,4 +1,5 @@
-pkgname=nzxt_rgb_fan_controller-dkms
+modname=nzxt_rgb_fan_controller
+pkgname=${modname}-dkms
 pkgver=0.1
 pkgrel=1
 pkgdesc='HWMON Driver for NZXT RGB & Fan Controller/Smart Device V2'
@@ -9,7 +10,7 @@ depends=(dkms)
 source=(
   Makefile
   Kbuild
-  nzxt_rgb_fan_controller.c
+  ${modname}.c
   dkms.conf
 )
 md5sums=('SKIP' 'SKIP' 'SKIP' 'SKIP')
@@ -19,5 +20,5 @@ pkgver() {
 }
 
 package() {
-  install -Dm 644 ${source[@]} -t "${pkgdir}"/usr/src/nzxt_rgb_fan_controller-${pkgver}
+  install -Dm 644 ${source[@]} -t "${pkgdir}"/usr/src/${modname}-${pkgver}
 }
