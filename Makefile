@@ -61,10 +61,10 @@ upstream_config/%:
 	sed -E -f $^ >$@
 
 checkpatch:
-	$(KDIR)/scripts/checkpatch.pl --strict --no-tree -f $(SRC_FILE)
+	$(KDIR)/scripts/checkpatch.pl -f $(SRC_FILE)
 
 checkpatch-fix:
-	$(KDIR)/scripts/checkpatch.pl --strict --no-tree --fix-inplace -f $(SRC_FILE)
+	$(KDIR)/scripts/checkpatch.pl --fix-inplace -f $(SRC_FILE)
 
 .PHONY: checkpatch checkpatch-fix
 

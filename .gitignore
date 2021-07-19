@@ -169,6 +169,8 @@ sphinx_*/
 # Include clangd config
 !/.clangd
 
+!/.checkpatch.conf
+
 # Sublime Text
 /*.sublime-workspace
 
