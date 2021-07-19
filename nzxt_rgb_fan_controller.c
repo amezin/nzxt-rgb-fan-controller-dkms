@@ -729,9 +729,26 @@ static struct hid_driver hid_driver = {
 #endif
 };
 
-module_hid_driver(hid_driver)
+static int __init nzxt_rgb_fan_controller_init(void)
+{
+	return hid_register_driver(&hid_driver);
+}
+
+static void __exit nzxt_rgb_fan_controller_exit(void)
+{
+	hid_unregister_driver(&hid_driver);
+}
 
 MODULE_DEVICE_TABLE(hid, hid_id_table);
 MODULE_AUTHOR("Aleksandr Mezin <mezin.alexander@gmail.com>");
 MODULE_DESCRIPTION("Driver for NZXT RGB & Fan Controller/Smart Device V2");
 MODULE_LICENSE("GPL");
+
+/*
+ * With module_init()/module_hid_driver() and the driver built into the kernel:
+ *
+ * Driver 'nzxt_rgb_fan_controller' was unable to register with bus_type 'hid'
+ * because the bus was not initialized.
+ */
+late_initcall(nzxt_rgb_fan_controller_init);
+module_exit(nzxt_rgb_fan_controller_exit);
