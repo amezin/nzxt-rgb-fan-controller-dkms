@@ -3,9 +3,15 @@
  *  Copyright (c) 2021 Aleksandr Mezin
  */
 
+#include <linux/version.h>
+
 #include <linux/hid.h>
 #include <linux/hwmon.h>
+#if KERNEL_VERSION(5, 11, 0) > LINUX_VERSION_CODE
+#include <linux/kernel.h>
+#else
 #include <linux/math.h>
+#endif
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
