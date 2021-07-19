@@ -475,7 +475,7 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 	if (res)
 		return res;
 
-	return (val == expected_val) ? 0 : -ENOTSUPP;
+	return (val == expected_val) ? 0 : -EOPNOTSUPP;
 }
 
 /*
