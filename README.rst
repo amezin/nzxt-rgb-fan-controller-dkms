@@ -5,7 +5,7 @@ HWMON driver for NZXT RGB & Fan Controller
 
 Supported devices:
 
-- NZXT RGB and Fan controller
+- NZXT RGB & Fan controller
 
 Probably supported, but not yet tested:
 
@@ -18,7 +18,7 @@ This driver implements monitoring and control of fans plugged into the device.
 Besides typical speed monitoring and PWM duty cycle control, voltage and current
 is reported for every fan.
 
-The device also has 2 connectors for RGB LEDs, support for them isn't
+The device also has two connectors for RGB LEDs; support for them isn't
 implemented.
 
 Also, the device has a noise sensor, but the sensor seems to be completely
@@ -30,9 +30,9 @@ Usage Notes
 The device should be autodetected, and the driver should load automatically.
 
 If fans are plugged in/unplugged while the system is powered on, the driver
-must be reloaded to detect changes in configuration, otherwise new fans can't
-be controlled (`pwm*` changes will be ignored). This is necessary because the
-device has a dedicated "detect fans" command, and currently it is executed only
+must be reloaded to detect configuration changes; otherwise, new fans can't
+be controlled (`pwm*` changes will be ignored). It is necessary because the
+device has a dedicated "detect fans" command, and currently, it is executed only
 during initialization. Speed, voltage, current monitoring will work even without
 reload.
 
@@ -47,7 +47,7 @@ pwm[1-3]		Controls fan speed: PWM duty cycle for PWM-controlled
 			fans, voltage for other fans. Voltage can be changed in
 			9-12 V range, but the value of the sysfs attribute is
 			always in 0-255 range (1 = 9V, 255 = 12V). Setting the
-			attribute to 0 completely turns off the fan.
+			attribute to 0 turns off the fan completely.
 pwm[1-3]_enable		Read-only, 1 if the fan was detected, 0 otherwise.
 pwm[1-3]_mode		Read-only, 1 for PWM-controlled fans, 0 for other fans
 			(or if no fan connected).
