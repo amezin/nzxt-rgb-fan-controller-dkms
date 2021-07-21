@@ -249,10 +249,26 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 		return;
 	}
 
+	for (i = 0; i < FAN_CHANNELS; i++) {
+		if (drvdata->fan_type[i] == report->fan_type[i])
+			continue;
+
+		/*
+		 * This should not happen (if my expectations about the device
+		 * are true).
+		 *
+		 * Even if the userspace sends fan detect command through
+		 * hidraw, fan config report should arrive first.
+		 */
+		hid_warn_once(drvdata->hid,
+			      "Fan %d type changed unexpectedly from %d to %d",
+			      i, drvdata->fan_type[i], report->fan_type[i]);
+		drvdata->fan_type[i] = report->fan_type[i];
+	}
+
 	switch (report->type) {
 	case FAN_STATUS_REPORT_SPEED:
 		for (i = 0; i < FAN_CHANNELS; i++) {
-			drvdata->fan_type[i] = report->fan_type[i];
 			drvdata->fan_rpm[i] =
 				get_unaligned_le16(&report->fan_speed.fan_rpm[i]);
 			drvdata->fan_duty_percent[i] =
@@ -267,7 +283,6 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 
 	case FAN_STATUS_REPORT_VOLTAGE:
 		for (i = 0; i < FAN_CHANNELS; i++) {
-			drvdata->fan_type[i] = report->fan_type[i];
 			drvdata->fan_in[i] =
 				get_unaligned_le16(&report->fan_voltage.fan_in[i]);
 			drvdata->fan_curr[i] =
