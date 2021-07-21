@@ -1,1 +1,1 @@
-obj-m := nzxt_rgb_fan_controller.o
+obj-m := nzxt-rgb-fan-controller.o
