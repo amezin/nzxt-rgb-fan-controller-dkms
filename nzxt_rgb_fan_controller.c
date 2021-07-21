@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * NZXT RGB & Fan Controller/Smart Device v2 driver.
+ * Reverse-engineered NZXT RGB & Fan Controller/Smart Device v2 driver.
  *
  * Copyright (c) 2021 Aleksandr Mezin
  */
