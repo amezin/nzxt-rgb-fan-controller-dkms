@@ -221,11 +221,8 @@ static void handle_fan_config_report(struct drvdata *drvdata, void *data, int si
 	for (i = 0; i < FAN_CHANNELS; i++)
 		drvdata->fan_type[i] = report->fan_type[i];
 
-	if (!drvdata->fan_config_received) {
-		drvdata->fan_config_received = true;
-		wake_up_all_locked(&drvdata->wq);
-	}
-
+	drvdata->fan_config_received = true;
+	wake_up_all_locked(&drvdata->wq);
 	spin_unlock(&drvdata->wq.lock);
 }
 
@@ -275,10 +272,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 				report->fan_speed.duty_percent[i];
 		}
 
-		if (!drvdata->pwm_status_received) {
-			drvdata->pwm_status_received = true;
-			wake_up_all_locked(&drvdata->wq);
-		}
+		drvdata->pwm_status_received = true;
+		wake_up_all_locked(&drvdata->wq);
 		break;
 
 	case FAN_STATUS_REPORT_VOLTAGE:
@@ -289,10 +284,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 				get_unaligned_le16(&report->fan_voltage.fan_current[i]);
 		}
 
-		if (!drvdata->voltage_status_received) {
-			drvdata->voltage_status_received = true;
-			wake_up_all_locked(&drvdata->wq);
-		}
+		drvdata->voltage_status_received = true;
+		wake_up_all_locked(&drvdata->wq);
 		break;
 	}
 
