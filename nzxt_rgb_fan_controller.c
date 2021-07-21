@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- *  Copyright (c) 2021 Aleksandr Mezin
+ * NZXT RGB & Fan Controller/Smart Device v2 driver.
+ *
+ * Copyright (c) 2021 Aleksandr Mezin
  */
 
 #include <linux/version.h>
@@ -57,6 +59,10 @@ struct unknown_static_data {
 	u8 unknown1[14];
 } __packed;
 
+/*
+ * The device sends this input report in response to "detect fans" command:
+ * a 2-byte output report { 0x60, 0x03 }.
+ */
 struct fan_config_report {
 	/* report_id should be INPUT_REPORT_ID_FAN_CONFIG = 0x61 */
 	u8 report_id;
@@ -67,6 +73,11 @@ struct fan_config_report {
 	u8 fan_type[FAN_CHANNELS_MAX];
 } __packed;
 
+/*
+ * The device sends these reports at a fixed interval (update interval) -
+ * one report with type = FAN_STATUS_REPORT_SPEED, and one report with type =
+ * FAN_STATUS_REPORT_VOLTAGE per update interval.
+ */
 struct fan_status_report {
 	/* report_id should be INPUT_REPORT_ID_STATUS = 0x67 */
 	u8 report_id;
@@ -125,6 +136,10 @@ enum {
 	INIT_COMMAND_DETECT_FANS = 0x03,
 };
 
+/*
+ * This output report sets pwm duty cycle/target fan speed for one or more
+ * channels.
+ */
 struct set_fan_speed_report {
 	/* report_id should be OUTPUT_REPORT_ID_SET_FAN_SPEED = 0x62 */
 	u8 report_id;
@@ -132,7 +147,13 @@ struct set_fan_speed_report {
 	u8 magic;
 	/* To change fan speed on i-th channel, set i-th bit here */
 	u8 channel_bit_mask;
-	/* Fan duty cycle/target speed in percent */
+	/*
+	 * Fan duty cycle/target speed in percent. For voltage-controlled fans,
+	 * the minimal voltage (duty_percent = 1) is about 9V.
+	 * Setting duty_percent to 0 (if the channel is selected in
+	 * channel_bit_mask) turns off the fan completely (regardless of the
+	 * control mode).
+	 */
 	u8 duty_percent[FAN_CHANNELS_MAX];
 } __packed;
 
