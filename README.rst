@@ -1,7 +1,7 @@
 .. SPDX-License-Identifier: GPL-2.0-or-later
 
-HWMON driver for NZXT RGB & Fan Controller
-==========================================
+Kernel driver nzxt-rgb-fan-controller
+=====================================
 
 Supported devices:
 
