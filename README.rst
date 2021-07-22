@@ -19,7 +19,7 @@ Besides typical speed monitoring and PWM duty cycle control, voltage and current
 is reported for every fan.
 
 The device also has two connectors for RGB LEDs; support for them isn't
-implemented.
+implemented (mainly because there is no standardized sysfs interface).
 
 Also, the device has a noise sensor, but the sensor seems to be completely
 useless (and very imprecise), so support for it isn't implemented too.
@@ -35,6 +35,9 @@ be controlled (`pwm*` changes will be ignored). It is necessary because the
 device has a dedicated "detect fans" command, and currently, it is executed only
 during initialization. Speed, voltage, current monitoring will work even without
 reload.
+
+The driver coexists with userspace tools that access the device through hidraw
+interface with no known issues.
 
 Sysfs entries
 -------------
