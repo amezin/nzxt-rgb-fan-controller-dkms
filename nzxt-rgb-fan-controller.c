@@ -31,6 +31,25 @@
 
 #define UPDATE_INTERVAL_DEFAULT_MS 1000
 
+/* These strings match labels on the device exactly */
+static const char *fan_label[] = {
+	"FAN 1",
+	"FAN 2",
+	"FAN 3",
+};
+
+static const char *curr_label[] = {
+	"FAN 1 Current",
+	"FAN 2 Current",
+	"FAN 3 Current",
+};
+
+static const char *in_label[] = {
+	"FAN 1 Voltage",
+	"FAN 2 Voltage",
+	"FAN 3 Voltage",
+};
+
 enum {
 	INPUT_REPORT_ID_FAN_CONFIG = 0x61,
 	INPUT_REPORT_ID_FAN_STATUS = 0x67,
@@ -634,19 +653,44 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
+static int hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
+			     u32 attr, int channel, const char **str)
+{
+	switch (type) {
+	case hwmon_fan:
+		*str = fan_label[channel];
+		return 0;
+	case hwmon_curr:
+		*str = curr_label[channel];
+		return 0;
+	case hwmon_in:
+		*str = in_label[channel];
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct hwmon_ops hwmon_ops = {
 	.is_visible = hwmon_is_visible,
 	.read = hwmon_read,
+	.read_string = hwmon_read_string,
 	.write = hwmon_write,
 };
 
 static const struct hwmon_channel_info *channel_info[] = {
-	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT, HWMON_F_INPUT, HWMON_F_INPUT),
+	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_LABEL,
+			   HWMON_F_INPUT | HWMON_F_LABEL,
+			   HWMON_F_INPUT | HWMON_F_LABEL),
 	HWMON_CHANNEL_INFO(pwm, HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE,
 			   HWMON_PWM_INPUT | HWMON_PWM_MODE | HWMON_PWM_ENABLE),
-	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT, HWMON_I_INPUT, HWMON_I_INPUT),
-	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT, HWMON_C_INPUT, HWMON_C_INPUT),
+	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL,
+			   HWMON_I_INPUT | HWMON_I_LABEL),
+	HWMON_CHANNEL_INFO(curr, HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL,
+			   HWMON_C_INPUT | HWMON_C_LABEL),
 	HWMON_CHANNEL_INFO(chip, HWMON_C_UPDATE_INTERVAL),
 	NULL
 };
