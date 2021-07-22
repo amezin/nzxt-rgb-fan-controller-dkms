@@ -32,19 +32,19 @@
 #define UPDATE_INTERVAL_DEFAULT_MS 1000
 
 /* These strings match labels on the device exactly */
-static const char *fan_label[] = {
+static const char *const fan_label[] = {
 	"FAN 1",
 	"FAN 2",
 	"FAN 3",
 };
 
-static const char *curr_label[] = {
+static const char *const curr_label[] = {
 	"FAN 1 Current",
 	"FAN 2 Current",
 	"FAN 3 Current",
 };
 
-static const char *in_label[] = {
+static const char *const in_label[] = {
 	"FAN 1 Voltage",
 	"FAN 2 Voltage",
 	"FAN 3 Voltage",
