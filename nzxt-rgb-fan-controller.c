@@ -258,7 +258,8 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 	/*
 	 * The device sends INPUT_REPORT_ID_FAN_CONFIG = 0x61 report in response
 	 * to "detect fans" command. Only accept other data after getting 0x61,
-	 * to make sure that fan detection is complete and the data is not stale.
+	 * to make sure that fan detection is complete. In particular, fan
+	 * detection resets pwm values.
 	 */
 	if (!drvdata->fan_config_received) {
 		spin_unlock(&drvdata->wq.lock);
@@ -271,7 +272,7 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 
 		/*
 		 * This should not happen (if my expectations about the device
-		 * are true).
+		 * are correct).
 		 *
 		 * Even if the userspace sends fan detect command through
 		 * hidraw, fan config report should arrive first.
