@@ -528,7 +528,7 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 }
 
 /*
- * Control byte	| Actual update interval
+ * Control byte	| Actual update interval in seconds
  * 0xff		| 65.5
  * 0xf7		| 63.46
  * 0x7f		| 32.74
