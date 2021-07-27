@@ -446,8 +446,6 @@ static int send_output_report(struct drvdata *drvdata, const void *data,
 {
 	int ret;
 
-	lockdep_assert_held(&drvdata->mutex);
-
 	if (data_size > sizeof(drvdata->output_buffer))
 		return -EINVAL;
 
@@ -588,15 +586,6 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 		INIT_COMMAND_DETECT_FANS,
 	};
 
-	/*
-	 * This lock is here only to avoid lockdep warning. Am I using lockdep
-	 * incorrectly?
-	 * There's (currently) no way init_device() could be called multiple
-	 * times concurrently (or concurrently with other functions that lock
-	 * the mutex).
-	 */
-	mutex_lock(&drvdata->mutex);
-
 	spin_lock_bh(&drvdata->wq.lock);
 	drvdata->fan_config_received = false;
 	drvdata->pwm_status_received = false;
@@ -608,8 +597,6 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 
 	if (ret == 0)
 		ret = set_update_interval(drvdata, update_interval);
-
-	mutex_unlock(&drvdata->mutex);
 
 	return ret;
 }
