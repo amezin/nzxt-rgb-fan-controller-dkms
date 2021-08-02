@@ -371,29 +371,29 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_pwm_enable:
 			res = wait_event_interruptible_locked_irq(drvdata->wq,
 								  drvdata->fan_config_received);
+			if (res)
+				goto unlock;
 
-			if (res == 0)
-				*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
-
+			*val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
 			break;
 
 		case hwmon_pwm_mode:
 			res = wait_event_interruptible_locked_irq(drvdata->wq,
 								  drvdata->fan_config_received);
+			if (res)
+				goto unlock;
 
-			if (res == 0)
-				*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
-
+			*val = drvdata->fan_type[channel] == FAN_TYPE_PWM;
 			break;
 
 		case hwmon_pwm_input:
 			res = wait_event_interruptible_locked_irq(drvdata->wq,
 								  drvdata->pwm_status_received);
+			if (res)
+				goto unlock;
 
-			if (res == 0)
-				*val = scale_pwm_value(drvdata->fan_duty_percent[channel],
-						       100, 255);
-
+			*val = scale_pwm_value(drvdata->fan_duty_percent[channel],
+					       100, 255);
 			break;
 		}
 		break;
@@ -407,9 +407,10 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		if (attr == hwmon_fan_input) {
 			res = wait_event_interruptible_locked_irq(drvdata->wq,
 								  drvdata->pwm_status_received);
+			if (res)
+				goto unlock;
 
-			if (res == 0)
-				*val = drvdata->fan_rpm[channel];
+			*val = drvdata->fan_rpm[channel];
 		}
 		break;
 
@@ -417,9 +418,10 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		if (attr == hwmon_in_input) {
 			res = wait_event_interruptible_locked_irq(drvdata->wq,
 								  drvdata->voltage_status_received);
+			if (res)
+				goto unlock;
 
-			if (res == 0)
-				*val = drvdata->fan_in[channel];
+			*val = drvdata->fan_in[channel];
 		}
 		break;
 
@@ -427,9 +429,10 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		if (attr == hwmon_curr_input) {
 			res = wait_event_interruptible_locked_irq(drvdata->wq,
 								  drvdata->voltage_status_received);
+			if (res)
+				goto unlock;
 
-			if (res == 0)
-				*val = drvdata->fan_curr[channel];
+			*val = drvdata->fan_curr[channel];
 		}
 		break;
 
@@ -437,6 +440,7 @@ static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		break;
 	}
 
+unlock:
 	spin_unlock_irq(&drvdata->wq.lock);
 	return res;
 }
@@ -477,6 +481,8 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 
 	report.duty_percent[channel] = duty_percent;
 	ret = send_output_report(drvdata, &report, sizeof(report));
+	if (ret)
+		goto unlock;
 
 	/*
 	 * pwmconfig and fancontrol scripts expect pwm writes to take effect
@@ -489,14 +495,12 @@ static int set_pwm(struct drvdata *drvdata, int channel, long val)
 	 * update. This avoids "fan stuck" messages from pwmconfig, and
 	 * fancontrol setting fan speed to 100% during shutdown.
 	 */
-	if (ret == 0) {
-		spin_lock_bh(&drvdata->wq.lock);
-		drvdata->fan_duty_percent[channel] = duty_percent;
-		spin_unlock_bh(&drvdata->wq.lock);
-	}
+	spin_lock_bh(&drvdata->wq.lock);
+	drvdata->fan_duty_percent[channel] = duty_percent;
+	spin_unlock_bh(&drvdata->wq.lock);
 
+unlock:
 	mutex_unlock(&drvdata->mutex);
-
 	return ret;
 }
 
@@ -513,14 +517,14 @@ static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 
 	res = wait_event_interruptible_locked_irq(drvdata->wq,
 						  drvdata->fan_config_received);
+	if (res) {
+		spin_unlock_irq(&drvdata->wq.lock);
+		return res;
+	}
 
-	if (res == 0)
-		expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
+	expected_val = drvdata->fan_type[channel] != FAN_TYPE_NONE;
 
 	spin_unlock_irq(&drvdata->wq.lock);
-
-	if (res)
-		return res;
 
 	return (val == expected_val) ? 0 : -EOPNOTSUPP;
 }
@@ -571,11 +575,12 @@ static int set_update_interval(struct drvdata *drvdata, long val)
 	int ret;
 
 	ret = send_output_report(drvdata, report, sizeof(report));
-	if (ret == 0)
-		WRITE_ONCE(drvdata->update_interval,
-			   control_byte_to_update_interval(control));
+	if (ret)
+		return ret;
 
-	return ret;
+	WRITE_ONCE(drvdata->update_interval,
+		   control_byte_to_update_interval(control));
+	return 0;
 }
 
 static int init_device(struct drvdata *drvdata, long update_interval)
@@ -594,11 +599,10 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 
 	ret = send_output_report(drvdata, detect_fans_report,
 				 sizeof(detect_fans_report));
+	if (ret)
+		return ret;
 
-	if (ret == 0)
-		ret = set_update_interval(drvdata, update_interval);
-
-	return ret;
+	return set_update_interval(drvdata, update_interval);
 }
 
 static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
