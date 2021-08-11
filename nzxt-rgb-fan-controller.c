@@ -450,6 +450,8 @@ static int send_output_report(struct drvdata *drvdata, const void *data,
 {
 	int ret;
 
+	lockdep_assert_held(&drvdata->mutex);
+
 	if (data_size > sizeof(drvdata->output_buffer))
 		return -EINVAL;
 
@@ -590,6 +592,8 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 		INIT_COMMAND_DETECT_FANS,
 	};
 
+	mutex_lock(&drvdata->mutex);
+
 	spin_lock_bh(&drvdata->wq.lock);
 	drvdata->fan_config_received = false;
 	drvdata->pwm_status_received = false;
@@ -599,9 +603,15 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 	ret = send_output_report(drvdata, detect_fans_report,
 				 sizeof(detect_fans_report));
 	if (ret)
-		return ret;
+		goto unlock;
 
-	return set_update_interval(drvdata, update_interval);
+	ret = set_update_interval(drvdata, update_interval);
+	if (ret)
+		goto unlock;
+
+unlock:
+	mutex_unlock(&drvdata->mutex);
+	return ret;
 }
 
 static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
