@@ -1,1 +1,1 @@
-obj-m := nzxt-rgb-fan-controller.o
+obj-m := nzxt-smart2.o

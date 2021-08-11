@@ -1,4 +1,4 @@
-modname=nzxt-rgb-fan-controller
+modname=nzxt-smart2
 pkgname=${modname}-dkms
 pkgver=0.1
 pkgrel=1
@@ -7,7 +7,8 @@ url=https://github.com/amezin/nzxt-rgb-fan-controller-dkms
 arch=(any)
 license=(GPL)
 depends=(dkms)
-conflicts=(nzxt_rgb_fan_controller-dkms)
+provides=(nzxt_rgb_fan_controller-dkms nzxt-rgb-fan-controller-dkms)
+conflicts=(nzxt_rgb_fan_controller-dkms nzxt-rgb-fan-controller-dkms)
 source=(
   Makefile
   Kbuild

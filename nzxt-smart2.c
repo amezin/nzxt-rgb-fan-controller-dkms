@@ -763,7 +763,7 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 	drvdata->hwmon =
 		hwmon_device_register_with_info(&hdev->dev,
-						"nzxt_rgb_fan_controller",
+						"nzxtsmart2",
 						drvdata, &chip_info, NULL);
 	if (IS_ERR(drvdata->hwmon)) {
 		ret = PTR_ERR(drvdata->hwmon);
@@ -800,7 +800,7 @@ static const struct hid_device_id hid_id_table[] = {
 };
 
 static struct hid_driver hid_driver = {
-	.name = "nzxt_rgb_fan_controller",
+	.name = "nzxt-smart2",
 	.id_table = hid_id_table,
 	.probe = hid_probe,
 	.remove = hid_remove,
@@ -810,12 +810,12 @@ static struct hid_driver hid_driver = {
 #endif
 };
 
-static int __init nzxt_rgb_fan_controller_init(void)
+static int __init nzxt_smart2_init(void)
 {
 	return hid_register_driver(&hid_driver);
 }
 
-static void __exit nzxt_rgb_fan_controller_exit(void)
+static void __exit nzxt_smart2_exit(void)
 {
 	hid_unregister_driver(&hid_driver);
 }
@@ -828,8 +828,8 @@ MODULE_LICENSE("GPL");
 /*
  * With module_init()/module_hid_driver() and the driver built into the kernel:
  *
- * Driver 'nzxt_rgb_fan_controller' was unable to register with bus_type 'hid'
- * because the bus was not initialized.
+ * Driver 'nzxt_smart2' was unable to register with bus_type 'hid' because the
+ * bus was not initialized.
  */
-late_initcall(nzxt_rgb_fan_controller_init);
-module_exit(nzxt_rgb_fan_controller_exit);
+late_initcall(nzxt_smart2_init);
+module_exit(nzxt_smart2_exit);
