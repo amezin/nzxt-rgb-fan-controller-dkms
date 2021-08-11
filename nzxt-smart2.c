@@ -312,8 +312,9 @@ static void handle_fan_status_report(struct drvdata *drvdata, void *data, int si
 	spin_unlock(&drvdata->wq.lock);
 }
 
-static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
-				u32 attr, int channel)
+static umode_t nzxt_smart2_hwmon_is_visible(const void *data,
+					    enum hwmon_sensor_types type,
+					    u32 attr, int channel)
 {
 	switch (type) {
 	case hwmon_pwm:
@@ -340,8 +341,8 @@ static umode_t hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static int hwmon_read(struct device *dev, enum hwmon_sensor_types type,
-		      u32 attr, int channel, long *val)
+static int nzxt_smart2_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
+				  u32 attr, int channel, long *val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
 	int res = -EINVAL;
@@ -614,8 +615,9 @@ unlock:
 	return ret;
 }
 
-static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
-		       u32 attr, int channel, long val)
+static int nzxt_smart2_hwmon_write(struct device *dev,
+				   enum hwmon_sensor_types type, u32 attr,
+				   int channel, long val)
 {
 	struct drvdata *drvdata = dev_get_drvdata(dev);
 	int ret;
@@ -654,8 +656,9 @@ static int hwmon_write(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static int hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
-			     u32 attr, int channel, const char **str)
+static int nzxt_smart2_hwmon_read_string(struct device *dev,
+					 enum hwmon_sensor_types type, u32 attr,
+					 int channel, const char **str)
 {
 	switch (type) {
 	case hwmon_fan:
@@ -672,14 +675,14 @@ static int hwmon_read_string(struct device *dev, enum hwmon_sensor_types type,
 	}
 }
 
-static const struct hwmon_ops hwmon_ops = {
-	.is_visible = hwmon_is_visible,
-	.read = hwmon_read,
-	.read_string = hwmon_read_string,
-	.write = hwmon_write,
+static const struct hwmon_ops nzxt_smart2_hwmon_ops = {
+	.is_visible = nzxt_smart2_hwmon_is_visible,
+	.read = nzxt_smart2_hwmon_read,
+	.read_string = nzxt_smart2_hwmon_read_string,
+	.write = nzxt_smart2_hwmon_write,
 };
 
-static const struct hwmon_channel_info *channel_info[] = {
+static const struct hwmon_channel_info *nzxt_smart2_channel_info[] = {
 	HWMON_CHANNEL_INFO(fan, HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
@@ -696,13 +699,13 @@ static const struct hwmon_channel_info *channel_info[] = {
 	NULL
 };
 
-static const struct hwmon_chip_info chip_info = {
-	.ops = &hwmon_ops,
-	.info = channel_info,
+static const struct hwmon_chip_info nzxt_smart2_chip_info = {
+	.ops = &nzxt_smart2_hwmon_ops,
+	.info = nzxt_smart2_channel_info,
 };
 
-static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
-			 u8 *data, int size)
+static int nzxt_smart2_hid_raw_event(struct hid_device *hdev,
+				     struct hid_report *report, u8 *data, int size)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 	u8 report_id = *data;
@@ -720,14 +723,15 @@ static int hid_raw_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
-static int hid_reset_resume(struct hid_device *hdev)
+static int nzxt_smart2_hid_reset_resume(struct hid_device *hdev)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 
 	return init_device(drvdata, drvdata->update_interval);
 }
 
-static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
+static int nzxt_smart2_hid_probe(struct hid_device *hdev,
+				 const struct hid_device_id *id)
 {
 	struct drvdata *drvdata;
 	int ret;
@@ -762,9 +766,8 @@ static int hid_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	init_device(drvdata, UPDATE_INTERVAL_DEFAULT_MS);
 
 	drvdata->hwmon =
-		hwmon_device_register_with_info(&hdev->dev,
-						"nzxtsmart2",
-						drvdata, &chip_info, NULL);
+		hwmon_device_register_with_info(&hdev->dev, "nzxtsmart2", drvdata,
+						&nzxt_smart2_chip_info, NULL);
 	if (IS_ERR(drvdata->hwmon)) {
 		ret = PTR_ERR(drvdata->hwmon);
 		goto out_hw_close;
@@ -780,7 +783,7 @@ out_hw_stop:
 	return ret;
 }
 
-static void hid_remove(struct hid_device *hdev)
+static void nzxt_smart2_hid_remove(struct hid_device *hdev)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 
@@ -790,7 +793,7 @@ static void hid_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
-static const struct hid_device_id hid_id_table[] = {
+static const struct hid_device_id nzxt_smart2_hid_id_table[] = {
 	{ HID_USB_DEVICE(0x1e71, 0x2006) }, /* NZXT Smart Device V2 */
 	{ HID_USB_DEVICE(0x1e71, 0x200d) }, /* NZXT Smart Device V2 */
 	{ HID_USB_DEVICE(0x1e71, 0x2009) }, /* NZXT RGB & Fan Controller */
@@ -799,28 +802,28 @@ static const struct hid_device_id hid_id_table[] = {
 	{},
 };
 
-static struct hid_driver hid_driver = {
+static struct hid_driver nzxt_smart2_hid_driver = {
 	.name = "nzxt-smart2",
-	.id_table = hid_id_table,
-	.probe = hid_probe,
-	.remove = hid_remove,
-	.raw_event = hid_raw_event,
+	.id_table = nzxt_smart2_hid_id_table,
+	.probe = nzxt_smart2_hid_probe,
+	.remove = nzxt_smart2_hid_remove,
+	.raw_event = nzxt_smart2_hid_raw_event,
 #ifdef CONFIG_PM
-	.reset_resume = hid_reset_resume,
+	.reset_resume = nzxt_smart2_hid_reset_resume,
 #endif
 };
 
 static int __init nzxt_smart2_init(void)
 {
-	return hid_register_driver(&hid_driver);
+	return hid_register_driver(&nzxt_smart2_hid_driver);
 }
 
 static void __exit nzxt_smart2_exit(void)
 {
-	hid_unregister_driver(&hid_driver);
+	hid_unregister_driver(&nzxt_smart2_hid_driver);
 }
 
-MODULE_DEVICE_TABLE(hid, hid_id_table);
+MODULE_DEVICE_TABLE(hid, nzxt_smart2_hid_id_table);
 MODULE_AUTHOR("Aleksandr Mezin <mezin.alexander@gmail.com>");
 MODULE_DESCRIPTION("Driver for NZXT RGB & Fan Controller/Smart Device V2");
 MODULE_LICENSE("GPL");
