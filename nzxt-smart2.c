@@ -591,12 +591,6 @@ static int init_device(struct drvdata *drvdata, long update_interval)
 		INIT_COMMAND_DETECT_FANS,
 	};
 
-	spin_lock_bh(&drvdata->wq.lock);
-	drvdata->fan_config_received = false;
-	drvdata->pwm_status_received = false;
-	drvdata->voltage_status_received = false;
-	spin_unlock_bh(&drvdata->wq.lock);
-
 	ret = send_output_report(drvdata, detect_fans_report,
 				 sizeof(detect_fans_report));
 	if (ret)
@@ -716,6 +710,12 @@ static int nzxt_smart2_hid_raw_event(struct hid_device *hdev,
 static int nzxt_smart2_hid_reset_resume(struct hid_device *hdev)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
+
+	spin_lock_bh(&drvdata->wq.lock);
+	drvdata->fan_config_received = false;
+	drvdata->pwm_status_received = false;
+	drvdata->voltage_status_received = false;
+	spin_unlock_bh(&drvdata->wq.lock);
 
 	return init_device(drvdata, drvdata->update_interval);
 }
