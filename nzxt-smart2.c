@@ -18,6 +18,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -183,6 +184,7 @@ struct drvdata {
 	u8 fan_duty_percent[FAN_CHANNELS];
 	u16 fan_rpm[FAN_CHANNELS];
 	bool pwm_status_received;
+	bool restore_pwm;
 
 	u16 fan_in[FAN_CHANNELS];
 	u16 fan_curr[FAN_CHANNELS];
@@ -210,6 +212,8 @@ struct drvdata {
 	struct mutex mutex;
 	long update_interval;
 	u8 output_buffer[OUTPUT_REPORT_SIZE];
+
+	struct work_struct pwm_restore_work;
 };
 
 static long scale_pwm_value(long val, long orig_max, long new_max)
@@ -239,6 +243,11 @@ static void handle_fan_config_report(struct drvdata *drvdata, void *data, int si
 
 	for (i = 0; i < FAN_CHANNELS; i++)
 		drvdata->fan_type[i] = report->fan_type[i];
+
+	if (drvdata->restore_pwm) {
+		schedule_work(&drvdata->pwm_restore_work);
+		drvdata->restore_pwm = false;
+	}
 
 	drvdata->fan_config_received = true;
 	wake_up_all_locked(&drvdata->wq);
@@ -505,6 +514,31 @@ unlock:
 	return ret;
 }
 
+static void restore_pwm(struct work_struct *work)
+{
+	struct drvdata *drvdata =
+		container_of(work, struct drvdata, pwm_restore_work);
+	int channel;
+
+	struct set_fan_speed_report report = {
+		.report_id = OUTPUT_REPORT_ID_SET_FAN_SPEED,
+		.magic = 1,
+	};
+
+	if (mutex_lock_interruptible(&drvdata->mutex))
+		return;
+
+	spin_lock_bh(&drvdata->wq.lock);
+	for (channel = 0; channel < FAN_CHANNELS; channel++) {
+		report.channel_bit_mask |= 1 << channel;
+		report.duty_percent[channel] = drvdata->fan_duty_percent[channel];
+	}
+	spin_unlock_bh(&drvdata->wq.lock);
+
+	send_output_report(drvdata, &report, sizeof(report));
+	mutex_unlock(&drvdata->mutex);
+}
+
 /*
  * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable even if it
  * already is 1.
@@ -707,11 +741,24 @@ static int nzxt_smart2_hid_raw_event(struct hid_device *hdev,
 	return 0;
 }
 
+static int nzxt_smart2_hid_suspend(struct hid_device *hdev, pm_message_t message)
+{
+	struct drvdata *drvdata = hid_get_drvdata(hdev);
+
+	spin_lock_bh(&drvdata->wq.lock);
+	drvdata->restore_pwm = false;
+	spin_unlock_bh(&drvdata->wq.lock);
+
+	cancel_work_sync(&drvdata->pwm_restore_work);
+	return 0;
+}
+
 static int nzxt_smart2_hid_reset_resume(struct hid_device *hdev)
 {
 	struct drvdata *drvdata = hid_get_drvdata(hdev);
 
 	spin_lock_bh(&drvdata->wq.lock);
+	drvdata->restore_pwm = drvdata->pwm_status_received;
 	drvdata->fan_config_received = false;
 	drvdata->pwm_status_received = false;
 	drvdata->voltage_status_received = false;
@@ -734,6 +781,7 @@ static int nzxt_smart2_hid_probe(struct hid_device *hdev,
 	hid_set_drvdata(hdev, drvdata);
 
 	init_waitqueue_head(&drvdata->wq);
+	INIT_WORK(&drvdata->pwm_restore_work, restore_pwm);
 
 	mutex_init(&drvdata->mutex);
 	devm_add_action(&hdev->dev, (void (*)(void *))mutex_destroy,
@@ -799,6 +847,7 @@ static struct hid_driver nzxt_smart2_hid_driver = {
 	.remove = nzxt_smart2_hid_remove,
 	.raw_event = nzxt_smart2_hid_raw_event,
 #ifdef CONFIG_PM
+	.suspend = nzxt_smart2_hid_suspend,
 	.reset_resume = nzxt_smart2_hid_reset_resume,
 #endif
 };
