@@ -1,14 +1,11 @@
 .. SPDX-License-Identifier: GPL-2.0-or-later
 
-Kernel driver nzxt-rgb-fan-controller
-=====================================
+Kernel driver nzxt-smart2
+=========================
 
 Supported devices:
 
 - NZXT RGB & Fan controller
-
-Probably supported, but not yet tested:
-
 - NZXT Smart Device v2
 
 Description
