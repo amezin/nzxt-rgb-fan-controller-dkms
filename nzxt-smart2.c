@@ -367,6 +367,8 @@ static int nzxt_smart2_hwmon_read(struct device *dev, enum hwmon_sensor_types ty
 		 * 1) remembers pwm* values when it starts
 		 * 2) needs pwm*_enable to be 1 on controlled fans
 		 * So make sure we have correct data before allowing pwm* reads.
+		 * Returning errors for initial pwm read will even cause
+		 * fancontrol to shut down. So wait is unavoidable.
 		 */
 		switch (attr) {
 		case hwmon_pwm_enable:
@@ -507,7 +509,8 @@ unlock:
 
 /*
  * Workaround for fancontrol/pwmconfig trying to write to pwm*_enable even if it
- * already is 1.
+ * already is 1 and read-only. Otherwise, fancontrol won't restore pwm on
+ * shutdown properly.
  */
 static int set_pwm_enable(struct drvdata *drvdata, int channel, long val)
 {
