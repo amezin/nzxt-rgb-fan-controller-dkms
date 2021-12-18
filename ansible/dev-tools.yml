@@ -3,6 +3,9 @@
   become: yes
   tasks:
   - ansible.builtin.dnf:
+      name: '*'
+      state: latest
+  - ansible.builtin.dnf:
       name: [kernel-debug, kernel-debug-devel, lm_sensors, usbutils, bc]
       state: latest
   - ansible.builtin.shell: rpm -ql kernel-debug-core | grep /boot/vmlinuz-
