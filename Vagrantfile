@@ -16,8 +16,8 @@ Vagrant.configure("2") do |config|
   config.vm.box_download_checksum_type = "sha256"
 
   config.vm.provider "virtualbox" do |virtualbox, override|
-    override.vm.box_url = "https://download.fedoraproject.org/pub/fedora/linux/releases/34/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-34-1.2.x86_64.vagrant-virtualbox.box"
-    override.vm.box_download_checksum = "e72d9987c61d58108910fab700e8bdf349e69d2e158037a10b07706a68446fda"
+    override.vm.box_url = "https://download.fedoraproject.org/pub/fedora/linux/releases/35/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-35-1.2.x86_64.vagrant-virtualbox.box"
+    override.vm.box_download_checksum = "9ff81a28bcf8d66620907b238dc76af5dc594accb02347a759c632f6b0ba30cd"
 
     virtualbox.cpus = CPUS
     virtualbox.memory = MEMORY
@@ -34,8 +34,8 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.provider "libvirt" do |libvirt, override|
-    override.vm.box_url = "https://download.fedoraproject.org/pub/fedora/linux/releases/34/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-34-1.2.x86_64.vagrant-libvirt.box"
-    override.vm.box_download_checksum = "3d9c00892253c869bffcf2e84ddd308e90d5c7a5928b3bc00e0563a4bec55849"
+    override.vm.box_url = "https://download.fedoraproject.org/pub/fedora/linux/releases/35/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-35-1.2.x86_64.vagrant-libvirt.box"
+    override.vm.box_download_checksum = "239cbcd6143396e382ed4eafebf5ab870c80042c44a6a7cdb5d041f8fe35b1db"
 
     libvirt.cpus = CPUS
     libvirt.memory = MEMORY
