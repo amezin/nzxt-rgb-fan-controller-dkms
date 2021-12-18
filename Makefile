@@ -68,4 +68,6 @@ checkpatch-fix:
 
 .PHONY: checkpatch checkpatch-fix
 
+.NOTPARALLEL:
+
 endif
