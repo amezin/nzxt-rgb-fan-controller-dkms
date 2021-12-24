@@ -10,6 +10,9 @@ jobs:
           - master
           - v5.15
           - v5.10
+        kconfig:
+          - "-e CONFIG_PM"
+          - "-d CONFIG_PM"
     runs-on: ubuntu-20.04
     steps:
       - run: sudo apt-get update
@@ -22,7 +25,10 @@ jobs:
           repository: torvalds/linux
           path: linux
           ref: ${{ matrix.kernel_version }}
-      - run: make defconfig
+      - run: cp src/.github/workflows/all.config linux/
+      - run: scripts/config --file all.config ${{ matrix.kconfig }}
+        working-directory: linux
+      - run: KCONFIG_ALLCONFIG=1 make allnoconfig
         working-directory: linux
       - run: make -j$(nproc)
         working-directory: linux
