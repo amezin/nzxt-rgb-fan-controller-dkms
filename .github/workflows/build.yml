@@ -4,6 +4,12 @@ on: [push, pull_request]
 
 jobs:
   build:
+    strategy:
+      matrix:
+        kernel_version:
+          - master
+          - v5.15
+          - v5.10
     runs-on: ubuntu-20.04
     steps:
       - run: sudo apt-get update
@@ -15,6 +21,7 @@ jobs:
         with:
           repository: torvalds/linux
           path: linux
+          ref: ${{ matrix.kernel_version }}
       - run: make defconfig
         working-directory: linux
       - run: make -j$(nproc)
