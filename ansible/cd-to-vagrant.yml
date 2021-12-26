@@ -1,6 +1,0 @@
----
-- hosts: all
-  tasks:
-  - ansible.builtin.lineinfile:
-      path: ~/.bash_profile
-      line: cd /vagrant

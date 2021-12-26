@@ -49,11 +49,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "ansible/cd-to-vagrant.yml"
-  end
-
-  config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "ansible/dev-tools.yml"
+    ansible.playbook = "vagrant-provision-ansible.yml"
   end
 
 end

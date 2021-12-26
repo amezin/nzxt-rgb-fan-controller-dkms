@@ -13,3 +13,6 @@
   - ansible.builtin.shell: "grubby --set-default={{ kernel_file.stdout }}"
   - ansible.builtin.reboot:
     when: kernel_file.stdout != "/boot/vmlinuz-" + ansible_kernel
+  - ansible.builtin.lineinfile:
+      path: ~/.bash_profile
+      line: cd /vagrant
