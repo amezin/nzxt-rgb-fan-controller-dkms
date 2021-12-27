@@ -16,11 +16,12 @@ jobs:
           - "-d CONFIG_PM"
     runs-on: ubuntu-20.04
     steps:
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y libelf-dev
       - uses: actions/checkout@v2
         with:
           path: src
+      - run: echo "::add-matcher::src/.github/workflows/gcc-problem-matcher.json"
+      - run: sudo apt-get update
+      - run: sudo apt-get install -y libelf-dev
       - uses: actions/checkout@v2
         with:
           repository: torvalds/linux
