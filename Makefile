@@ -66,7 +66,24 @@ checkpatch:
 checkpatch-fix:
 	$(KDIR)/scripts/checkpatch.pl --fix-inplace -f $(SRC_FILE)
 
-.PHONY: checkpatch checkpatch-fix
+.push-upstream .pull-upstream:
+	mkdir -p $@
+
+.push-upstream/$(SRC_FILE): $(SRC_FILE) to-upstream.diff | .push-upstream
+	patch -p1 -f -o $@ $< to-upstream.diff
+
+.pull-upstream/$(SRC_FILE): $(KDIR)/drivers/hwmon/$(SRC_FILE) to-upstream.diff | .pull-upstream
+	patch -p1 -f -R -o $@ $< to-upstream.diff
+
+push-upstream: .push-upstream/$(SRC_FILE) README.rst
+	cp .push-upstream/$(SRC_FILE) $(KDIR)/drivers/hwmon/$(SRC_FILE)
+	cp README.rst $(KDIR)/Documentation/hwmon/$(MODNAME).rst
+
+pull-upstream: .pull-upstream/$(SRC_FILE) README.rst
+	cp .pull-upstream/$(SRC_FILE) $(SRC_FILE)
+	cp README.rst $(KDIR)/Documentation/hwmon/$(MODNAME).rst
+
+.PHONY: checkpatch checkpatch-fix push-upstream pull-upstream
 
 .NOTPARALLEL:
 
