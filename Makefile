@@ -79,9 +79,9 @@ push-upstream: .push-upstream/$(SRC_FILE) README.rst
 	cp .push-upstream/$(SRC_FILE) $(KDIR)/drivers/hwmon/$(SRC_FILE)
 	cp README.rst $(KDIR)/Documentation/hwmon/$(MODNAME).rst
 
-pull-upstream: .pull-upstream/$(SRC_FILE) README.rst
+pull-upstream: .pull-upstream/$(SRC_FILE) $(KDIR)/Documentation/hwmon/$(MODNAME).rst
 	cp .pull-upstream/$(SRC_FILE) $(SRC_FILE)
-	cp README.rst $(KDIR)/Documentation/hwmon/$(MODNAME).rst
+	cp $(KDIR)/Documentation/hwmon/$(MODNAME).rst README.rst
 
 .PHONY: checkpatch checkpatch-fix push-upstream pull-upstream
 
