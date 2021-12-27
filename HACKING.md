@@ -47,8 +47,8 @@ code editing. In particular, you could edit the code in:
 Vagrant
 =======
 
-There is also a `Vagrantfile` (plus short ansible playbooks in `ansible/`).
-Both Vagrant and Ansible need to be installed on the host.
+There is also a `Vagrantfile` (plus `vagrant-provision-ansible.yml`
+Ansible playbook). Both Vagrant and Ansible need to be installed on the host.
 
 `vagrant up` will bring up a Fedora VM, will install a debug kernel, and reboot
 into it, if necessary. Supported USB devices will be passed through into the VM,
