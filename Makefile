@@ -69,19 +69,22 @@ checkpatch-fix:
 .push-upstream .pull-upstream:
 	mkdir -p $@
 
+UPSTREAM_SRCFILE := $(KDIR)/drivers/hwmon/$(SRC_FILE)
+UPSTREAM_README := $(KDIR)/Documentation/hwmon/$(MODNAME).rst
+
 .push-upstream/$(SRC_FILE): $(SRC_FILE) to-upstream.diff | .push-upstream
 	patch -p1 -f -o $@ $< to-upstream.diff
 
-.pull-upstream/$(SRC_FILE): $(KDIR)/drivers/hwmon/$(SRC_FILE) to-upstream.diff | .pull-upstream
+.pull-upstream/$(SRC_FILE): $(UPSTREAM_SRCFILE) to-upstream.diff | .pull-upstream
 	patch -p1 -f -R -o $@ $< to-upstream.diff
 
 push-upstream: .push-upstream/$(SRC_FILE) README.rst
-	cp .push-upstream/$(SRC_FILE) $(KDIR)/drivers/hwmon/$(SRC_FILE)
-	cp README.rst $(KDIR)/Documentation/hwmon/$(MODNAME).rst
+	cp $< $(UPSTREAM_SRCFILE)
+	cp README.rst $(UPSTREAM_README)
 
-pull-upstream: .pull-upstream/$(SRC_FILE) $(KDIR)/Documentation/hwmon/$(MODNAME).rst
-	cp .pull-upstream/$(SRC_FILE) $(SRC_FILE)
-	cp $(KDIR)/Documentation/hwmon/$(MODNAME).rst README.rst
+pull-upstream: .pull-upstream/$(SRC_FILE) $(UPSTREAM_README)
+	cp $< $(SRC_FILE)
+	cp $(UPSTREAM_README) README.rst
 
 .PHONY: checkpatch checkpatch-fix push-upstream pull-upstream
 
