@@ -1,35 +1,28 @@
 include Kbuild
 
-ifeq ($(KERNELRELEASE),)
-
-KDIR := /lib/modules/$(shell uname -r)/build
-
-all: modules
-
-GEN_COMPILE_COMMANDS := .vscode/generate_compdb.py
-
-ifneq ($(wildcard $(GEN_COMPILE_COMMANDS)),)
-all: compile_commands.json
-endif
-
-modules clean modules_install:
-	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
-
-install: modules_install
-
-.PHONY: all modules clean install modules_install
-
-.SUFFIXES:
-
-%:
-	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
+KERNELRELEASE := $(shell uname -r)
+KDIR := /lib/modules/$(KERNELRELEASE)/build
 
 OBJ_FILE := $(obj-m)
 SRC_FILE := $(OBJ_FILE:.o=.c)
 CMD_FILE := .$(OBJ_FILE).cmd
 MODNAME := $(OBJ_FILE:.o=)
 
+all: modules
+install: modules_install
+
 $(OBJ_FILE) $(MODNAME).ko: $(SRC_FILE) Kbuild
+
+modules clean modules_install $(OBJ_FILE) $(MODNAME).ko:
+	$(MAKE) -C $(KDIR) M=$(CURDIR) $@
+
+.PHONY: all modules clean install modules_install
+
+.SUFFIXES:
+
+.NOTPARALLEL:
+
+# Load/unload/reload
 
 insmod:
 	/sbin/insmod $(MODNAME).ko
@@ -43,13 +36,7 @@ reload:
 
 .PHONY: insmod rmmod reload
 
-format: .clang-format
-	clang-format -i $(SRC_FILE)
-
-.PHONY: format
-
-compile_commands.json: $(OBJ_FILE) $(GEN_COMPILE_COMMANDS)
-	python3 $(GEN_COMPILE_COMMANDS) -O $(KDIR) $(CURDIR)
+# Getting and modifying configs from upstream
 
 upstream_config/%:
 	curl -o $@ https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/plain/$*
@@ -60,11 +47,24 @@ upstream_config/%:
 .clang-format: clang-format.sed upstream_config/.clang-format
 	sed -E -f $^ >$@
 
+# Format
+
+format: .clang-format
+	clang-format -i $(SRC_FILE)
+
+.PHONY: format
+
+# checkpatch
+
 checkpatch:
 	$(KDIR)/scripts/checkpatch.pl -f $(SRC_FILE)
 
 checkpatch-fix:
 	$(KDIR)/scripts/checkpatch.pl --fix-inplace -f $(SRC_FILE)
+
+.PHONY: checkpatch checkpatch-fix
+
+# Sync the code with kernel tree
 
 .push-upstream .pull-upstream:
 	mkdir -p $@
@@ -86,8 +86,15 @@ pull-upstream: .pull-upstream/$(SRC_FILE) $(UPSTREAM_README)
 	cp $< $(SRC_FILE)
 	cp $(UPSTREAM_README) README.rst
 
-.PHONY: checkpatch checkpatch-fix push-upstream pull-upstream
+.PHONY: push-upstream pull-upstream
 
-.NOTPARALLEL:
+# compile_commands.json (requires .vscode submodule)
 
+GEN_COMPILE_COMMANDS := .vscode/generate_compdb.py
+
+compile_commands.json: $(OBJ_FILE) $(GEN_COMPILE_COMMANDS)
+	python3 $(GEN_COMPILE_COMMANDS) -O $(KDIR) $(CURDIR)
+
+ifneq ($(wildcard $(GEN_COMPILE_COMMANDS)),)
+all: compile_commands.json
 endif
